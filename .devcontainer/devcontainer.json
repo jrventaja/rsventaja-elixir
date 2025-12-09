@@ -1,0 +1,25 @@
+{
+  "name": "Ersventaja Dev",
+  "dockerComposeFile": ["../docker-compose.yml", "docker-compose.dev.yml"],
+  "service": "dev",
+  "workspaceFolder": "/app",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "elixir-lsp.elixir-ls",
+        "phoenixframework.phoenix"
+      ],
+      "settings": {
+        "elixirLS.projectDir": "${containerWorkspaceFolder}",
+        "elixirLS.fetchDeps": true,
+        "files.watcherExclude": {
+          "**/deps/**": true,
+          "**/_build/**": true
+        }
+      }
+    }
+  },
+  "forwardPorts": [4000],
+  "postCreateCommand": "mix deps.get && mix compile",
+  "shutdownAction": "stopCompose"
+}

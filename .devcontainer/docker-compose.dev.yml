@@ -1,0 +1,33 @@
+services:
+  db:
+    # Override db config for dev
+    environment:
+      POSTGRES_PASSWORD: ersventaja
+      POSTGRES_USER: ersventaja
+      POSTGRES_DB: ersventaja_dev
+
+  dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    container_name: ersventaja-dev
+    volumes:
+      - ..:/app:cached
+      - deps:/app/deps
+      - build:/app/_build
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MIX_ENV: dev
+      PHX_SERVER: "true"
+      PORT: "4000"
+      # Database connection - hostname is "db" (docker service name)
+      DB_HOST: db
+    ports:
+      - "4000:4000"
+    command: sleep infinity
+
+volumes:
+  deps:
+  build:

@@ -1,0 +1,7 @@
+{
+  "elixirLS.projectDir": "${workspaceFolder}",
+  "elixirLS.useCurrentRootFolderAsProjectDir": true,
+  "terminal.integrated.env.linux": {
+    "PATH": "/home/jrobe/.local/share/mise/shims:/home/jrobe/.local/bin:/home/jrobe/.mise/bin:${env:PATH}"
+  }
+}
