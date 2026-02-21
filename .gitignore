@@ -33,6 +33,7 @@ loan-*.tar
 
 # Environment variables
 .env
+.deploy.env
 
 # ElixirLS dir
 /.elixir_ls/
