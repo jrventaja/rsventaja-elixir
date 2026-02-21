@@ -51,13 +51,14 @@ defmodule Ersventaja.Policies.OCR do
 
     if File.exists?(file_path_str) do
       try do
-        result = with {:ok, text} <- extract_text(file_path_str),
-             {:ok, info} <- parse_policy_info(text, insurers) do
-          {:ok, info}
-        else
-          {:error, _reason} = error ->
-            error
-        end
+        result =
+          with {:ok, text} <- extract_text(file_path_str),
+               {:ok, info} <- parse_policy_info(text, insurers) do
+            {:ok, info}
+          else
+            {:error, _reason} = error ->
+              error
+          end
 
         result
       rescue
@@ -89,7 +90,10 @@ defmodule Ersventaja.Policies.OCR do
 
         {:ok, text} when is_binary(text) ->
           # Got some text but it's too short, might be incomplete - try OCR as fallback
-          Logger.info("[OCR STEP 2] pdftotext returned short text (#{byte_size(text)} bytes), falling back to OCR")
+          Logger.info(
+            "[OCR STEP 2] pdftotext returned short text (#{byte_size(text)} bytes), falling back to OCR"
+          )
+
           extract_text_with_ocr(file_path_str)
 
         {:error, reason} ->
@@ -107,9 +111,12 @@ defmodule Ersventaja.Policies.OCR do
     # Use pdftotext to extract text directly from PDF
     # -layout: preserve layout as much as possible
     # -enc UTF-8: output UTF-8 encoding
-    case System.cmd("pdftotext", ["-layout", "-enc", "UTF-8", file_path, "-"], stderr_to_stdout: true) do
+    case System.cmd("pdftotext", ["-layout", "-enc", "UTF-8", file_path, "-"],
+           stderr_to_stdout: true
+         ) do
       {output, 0} ->
         text = String.trim(output)
+
         if String.length(text) > 0 do
           {:ok, text}
         else
@@ -131,73 +138,93 @@ defmodule Ersventaja.Policies.OCR do
     Logger.info("[OCR FALLBACK] Starting pdftoppm conversion for: #{file_path}")
     # Convert PDF to images first (Tesseract can't read PDFs directly)
     case convert_pdf_to_image(file_path) do
-        {:ok, image_paths} when is_list(image_paths) ->
-          # Process all pages and combine the text
-          Logger.info("[OCR TESSERACT] Starting Tesseract on #{length(image_paths)} images")
-          try do
-            texts =
-              Enum.with_index(image_paths)
-              |> Enum.map(fn {image_path, idx} ->
-                Logger.info("[OCR TESSERACT] Processing image #{idx + 1}/#{length(image_paths)}: #{image_path}")
-                # Use Portuguese language for better OCR accuracy with PT-BR dates
-                TesseractOcr.read(image_path, %{lang: "por"})
-              end)
+      {:ok, image_paths} when is_list(image_paths) ->
+        # Process all pages and combine the text
+        Logger.info("[OCR TESSERACT] Starting Tesseract on #{length(image_paths)} images")
 
-            # Combine all pages with page separators
-            combined_text = texts |> Enum.join("\n\n--- PÁGINA ---\n\n")
+        try do
+          texts =
+            Enum.with_index(image_paths)
+            |> Enum.map(fn {image_path, idx} ->
+              Logger.info(
+                "[OCR TESSERACT] Processing image #{idx + 1}/#{length(image_paths)}: #{image_path}"
+              )
 
-            # Clean up all image files
-            Enum.each(image_paths, &File.rm/1)
+              # Use Portuguese language for better OCR accuracy with PT-BR dates
+              TesseractOcr.read(image_path, %{lang: "por"})
+            end)
 
-            {:ok, combined_text}
-          rescue
-            e ->
-              # Clean up image files on error
-              Enum.each(image_paths, fn path -> if File.exists?(path), do: File.rm(path) end)
-              error_msg = case e do
+          # Combine all pages with page separators
+          combined_text = texts |> Enum.join("\n\n--- PÁGINA ---\n\n")
+
+          # Clean up all image files
+          Enum.each(image_paths, &File.rm/1)
+
+          {:ok, combined_text}
+        rescue
+          e ->
+            # Clean up image files on error
+            Enum.each(image_paths, fn path -> if File.exists?(path), do: File.rm(path) end)
+
+            error_msg =
+              case e do
                 %ErlangError{original: :enoent} ->
                   "Tesseract OCR não está instalado ou não está no PATH. Por favor, instale o Tesseract OCR."
+
                 _ ->
                   Exception.message(e)
               end
-              {:error, {:ocr_error, error_msg}}
-          catch
-            :exit, {:shutdown, {:enoent, _}} ->
-              Enum.each(image_paths, fn path -> if File.exists?(path), do: File.rm(path) end)
-              {:error, {:ocr_error, "Tesseract OCR não está instalado ou não está no PATH. Por favor, instale o Tesseract OCR."}}
-            :exit, reason ->
-              Enum.each(image_paths, fn path -> if File.exists?(path), do: File.rm(path) end)
-              {:error, {:ocr_exit, reason}}
-          end
 
-        {:ok, single_image_path} when is_binary(single_image_path) ->
-          # Backward compatibility: handle single image path
-          try do
-            text = TesseractOcr.read(single_image_path, %{lang: "por"})
+            {:error, {:ocr_error, error_msg}}
+        catch
+          :exit, {:shutdown, {:enoent, _}} ->
+            Enum.each(image_paths, fn path -> if File.exists?(path), do: File.rm(path) end)
+
+            {:error,
+             {:ocr_error,
+              "Tesseract OCR não está instalado ou não está no PATH. Por favor, instale o Tesseract OCR."}}
+
+          :exit, reason ->
+            Enum.each(image_paths, fn path -> if File.exists?(path), do: File.rm(path) end)
+            {:error, {:ocr_exit, reason}}
+        end
+
+      {:ok, single_image_path} when is_binary(single_image_path) ->
+        # Backward compatibility: handle single image path
+        try do
+          text = TesseractOcr.read(single_image_path, %{lang: "por"})
+          File.rm(single_image_path)
+          {:ok, text}
+        rescue
+          e ->
             File.rm(single_image_path)
-            {:ok, text}
-          rescue
-            e ->
-              File.rm(single_image_path)
-              error_msg = case e do
+
+            error_msg =
+              case e do
                 %ErlangError{original: :enoent} ->
                   "Tesseract OCR não está instalado ou não está no PATH. Por favor, instale o Tesseract OCR."
+
                 _ ->
                   Exception.message(e)
               end
-              {:error, {:ocr_error, error_msg}}
-          catch
-            :exit, {:shutdown, {:enoent, _}} ->
-              File.rm(single_image_path)
-              {:error, {:ocr_error, "Tesseract OCR não está instalado ou não está no PATH. Por favor, instale o Tesseract OCR."}}
-            :exit, reason ->
-              File.rm(single_image_path)
-              {:error, {:ocr_exit, reason}}
-          end
 
-        {:error, reason} ->
-          {:error, {:ocr_error, "Erro ao converter PDF para imagem: #{inspect(reason)}"}}
-      end
+            {:error, {:ocr_error, error_msg}}
+        catch
+          :exit, {:shutdown, {:enoent, _}} ->
+            File.rm(single_image_path)
+
+            {:error,
+             {:ocr_error,
+              "Tesseract OCR não está instalado ou não está no PATH. Por favor, instale o Tesseract OCR."}}
+
+          :exit, reason ->
+            File.rm(single_image_path)
+            {:error, {:ocr_exit, reason}}
+        end
+
+      {:error, reason} ->
+        {:error, {:ocr_error, "Erro ao converter PDF para imagem: #{inspect(reason)}"}}
+    end
   end
 
   defp convert_pdf_to_image(pdf_path) do
@@ -213,9 +240,15 @@ defmodule Ersventaja.Policies.OCR do
     # Use pdftoppm to convert ALL pages of PDF to PNG
     # -png: output format
     # -r 300: resolution (300 DPI for best OCR quality)
-    Logger.info("[OCR FALLBACK] Running pdftoppm (all pages, 300 DPI) for: #{pdf_path} (#{div(file_size, 1024)}KB)")
-    result = System.cmd("pdftoppm", ["-png", "-r", "100", pdf_path, output_path], stderr_to_stdout: true)
+    Logger.info(
+      "[OCR FALLBACK] Running pdftoppm (all pages, 300 DPI) for: #{pdf_path} (#{div(file_size, 1024)}KB)"
+    )
+
+    result =
+      System.cmd("pdftoppm", ["-png", "-r", "100", pdf_path, output_path], stderr_to_stdout: true)
+
     Logger.info("[OCR FALLBACK] pdftoppm finished with result: #{inspect(result)}")
+
     case result do
       {output, 0} ->
         # pdftoppm outputs multiple files: output_path-01.png, output_path-02.png, etc.
@@ -226,7 +259,7 @@ defmodule Ersventaja.Policies.OCR do
               files
               |> Enum.filter(fn f ->
                 String.starts_with?(f, Path.basename(output_path)) &&
-                String.ends_with?(f, ".png")
+                  String.ends_with?(f, ".png")
               end)
               |> Enum.sort()
               |> Enum.map(&Path.join(dir, &1))
@@ -238,6 +271,7 @@ defmodule Ersventaja.Policies.OCR do
               Logger.error("[OCR FALLBACK] No image files found! Output: #{String.trim(output)}")
               {:error, "Nenhuma imagem convertida encontrada. Output: #{String.trim(output)}"}
             end
+
           {:error, _} ->
             {:error, "Erro ao listar arquivos do diretório. Output: #{String.trim(output)}"}
         end
@@ -256,6 +290,7 @@ defmodule Ersventaja.Policies.OCR do
     Logger.info("[OCR STEP 3] Starting GPT extraction, text size: #{byte_size(text)} bytes")
     result = GPTClient.extract_policy_info(text, insurers)
     Logger.info("[OCR STEP 4] GPT extraction complete")
+
     case result do
       {:ok, info} -> {:ok, info}
       {:error, reason} -> {:error, {:parsing_error, reason}}

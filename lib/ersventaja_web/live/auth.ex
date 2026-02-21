@@ -6,6 +6,7 @@ defmodule ErsventajaWeb.LiveAuth do
 
   def on_mount(:ensure_authenticated, _params, session, socket) do
     token = Map.get(session, "guardian_default_token")
+
     case token && Guardian.resource_from_token(token) do
       {:ok, user, _claims} ->
         {:cont, assign(socket, current_user: user)}
@@ -17,6 +18,7 @@ defmodule ErsventajaWeb.LiveAuth do
 
   def on_mount(:optional_auth, _params, session, socket) do
     token = Map.get(session, "guardian_default_token")
+
     case token && Guardian.resource_from_token(token) do
       {:ok, user, _claims} ->
         {:cont, assign(socket, current_user: user)}

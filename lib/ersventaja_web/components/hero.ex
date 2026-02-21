@@ -1,8 +1,8 @@
 defmodule ErsventajaWeb.Components.Hero do
   use Phoenix.Component
 
-  attr :title, :string, required: true
-  attr :subtitle, :string, default: nil
+  attr(:title, :string, required: true)
+  attr(:subtitle, :string, default: nil)
 
   def hero(assigns) do
     ~H"""

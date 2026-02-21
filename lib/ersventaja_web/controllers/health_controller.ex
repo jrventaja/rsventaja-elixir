@@ -7,12 +7,3 @@ defmodule ErsventajaWeb.HealthController do
     |> json(%{status: "ok"})
   end
 end
-
-
-
-
-
-
-
-
-

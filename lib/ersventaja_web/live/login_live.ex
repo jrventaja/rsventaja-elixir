@@ -7,6 +7,7 @@ defmodule ErsventajaWeb.LoginLive do
   def mount(_params, session, socket) do
     # Check if already authenticated
     token = Map.get(session, "guardian_default_token")
+
     case token && Guardian.resource_from_token(token) do
       {:ok, _user, _claims} ->
         {:ok, redirect(socket, to: "/controlpanel")}
@@ -20,17 +21,23 @@ defmodule ErsventajaWeb.LoginLive do
     socket = assign(socket, authenticating: true)
 
     if String.length(username) == 0 || String.length(password) == 0 do
-      {:noreply, socket |> put_flash(:warning, "Preencha todos os campos.") |> assign(authenticating: false)}
+      {:noreply,
+       socket |> put_flash(:warning, "Preencha todos os campos.") |> assign(authenticating: false)}
     else
       case UserManager.authenticate_user(username, password) do
         {:ok, user} ->
-          {:ok, guardian_token, _claims} = Guardian.encode_and_sign(user, %{}, token_type: "access")
+          {:ok, guardian_token, _claims} =
+            Guardian.encode_and_sign(user, %{}, token_type: "access")
+
           # Create a short-lived Phoenix token to pass the Guardian token securely
           session_token = Phoenix.Token.sign(socket, "session", guardian_token, max_age: 60)
           {:noreply, redirect(socket, to: "/session?token=#{session_token}")}
 
         {:error, _reason} ->
-          {:noreply, socket |> put_flash(:error, "Usuário ou senha incorretos.") |> assign(authenticating: false)}
+          {:noreply,
+           socket
+           |> put_flash(:error, "Usuário ou senha incorretos.")
+           |> assign(authenticating: false)}
       end
     end
   end

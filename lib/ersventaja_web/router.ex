@@ -25,13 +25,13 @@ defmodule ErsventajaWeb.Router do
   scope "/", ErsventajaWeb do
     pipe_through(:browser)
 
-    live "/", HomepageLive, :index
-    live "/produtos", ProductsLive, :index
-    live "/seguradoras", InsurersLive, :index
-    live "/contato", ContactLive, :index
-    live "/login", LoginLive, :index
-    get "/session", SessionController, :set_session
-    live "/controlpanel", ControlPanelLive, :index
+    live("/", HomepageLive, :index)
+    live("/produtos", ProductsLive, :index)
+    live("/seguradoras", InsurersLive, :index)
+    live("/contato", ContactLive, :index)
+    live("/login", LoginLive, :index)
+    get("/session", SessionController, :set_session)
+    live("/controlpanel", ControlPanelLive, :index)
   end
 
   # Other scopes may use custom stacks.
@@ -88,8 +88,6 @@ defmodule ErsventajaWeb.Router do
       get("/policies/last-30-days", PolicyController, :last_30_days)
       get("/policies", PolicyController, :get_policies)
       delete("/policies/:id", PolicyController, :delete)
-
     end
   end
-
 end

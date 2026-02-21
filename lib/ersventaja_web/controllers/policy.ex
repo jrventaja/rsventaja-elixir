@@ -109,27 +109,31 @@ defmodule ErsventajaWeb.PolicyController do
       200 => {"Extracted policy information", "application/json", %{}}
     },
     security: [%{"bearerAuth" => []}],
-    request_body: {"Base64 encoded PDF file", "application/json", %{
-      type: :object,
-      properties: %{
-        encoded_file: %{
-          type: :string,
-          description: "Base64 encoded PDF file content"
-        }
-      },
-      required: [:encoded_file]
-    }}
+    request_body:
+      {"Base64 encoded PDF file", "application/json",
+       %{
+         type: :object,
+         properties: %{
+           encoded_file: %{
+             type: :string,
+             description: "Base64 encoded PDF file content"
+           }
+         },
+         required: [:encoded_file]
+       }}
 
   def extract_ocr(conn, %{"encoded_file" => encoded_file}) do
     case OCR.extract_policy_info(encoded_file) do
       {:ok, info} ->
         # Convert Date structs to ISO8601 strings for JSON response, handle nil values
-        json_info = info
-        |> Enum.map(fn
-          {key, %Date{} = date} -> {key, Date.to_iso8601(date)}
-          {key, value} -> {key, value}
-        end)
-        |> Map.new()
+        json_info =
+          info
+          |> Enum.map(fn
+            {key, %Date{} = date} -> {key, Date.to_iso8601(date)}
+            {key, value} -> {key, value}
+          end)
+          |> Map.new()
+
         resp_json(conn, json_info)
 
       {:error, reason} ->

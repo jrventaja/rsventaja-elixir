@@ -118,18 +118,19 @@ defmodule Ersventaja.Policies.OCR.GPTClient do
       end)
       |> Enum.join("\n")
 
-    insurers_section = if length(insurers) > 0 do
-      """
+    insurers_section =
+      if length(insurers) > 0 do
+        """
 
-      Seguradoras disponíveis no banco de dados:
-      #{insurers_list}
+        Seguradoras disponíveis no banco de dados:
+        #{insurers_list}
 
-      Você DEVE fazer correspondência do nome da seguradora no documento com uma dessas seguradoras e retornar o insurer_id correspondente.
-      Se não conseguir encontrar correspondência, retorne null para insurer_id.
-      """
-    else
-      ""
-    end
+        Você DEVE fazer correspondência do nome da seguradora no documento com uma dessas seguradoras e retornar o insurer_id correspondente.
+        Se não conseguir encontrar correspondência, retorne null para insurer_id.
+        """
+      else
+        ""
+      end
 
     """
     Você é um especialista em extrair informações estruturadas de documentos de apólices de seguro brasileiros.
@@ -253,14 +254,20 @@ defmodule Ersventaja.Policies.OCR.GPTClient do
 
   defp maybe_parse_integer(data, key) when is_map(data) do
     case Map.get(data, key) do
-      nil -> data
-      value when is_integer(value) -> data
+      nil ->
+        data
+
+      value when is_integer(value) ->
+        data
+
       value when is_binary(value) ->
         case Integer.parse(value) do
           {int_value, _} -> Map.put(data, key, int_value)
           :error -> data
         end
-      _ -> data
+
+      _ ->
+        data
     end
   end
 
@@ -268,13 +275,17 @@ defmodule Ersventaja.Policies.OCR.GPTClient do
 
   defp maybe_parse_date(data, key) when is_map(data) do
     case Map.get(data, key) do
-      nil -> data
+      nil ->
+        data
+
       date_string when is_binary(date_string) ->
         case Date.from_iso8601(date_string) do
           {:ok, date} -> Map.put(data, key, date)
           {:error, _} -> data
         end
-      _ -> data
+
+      _ ->
+        data
     end
   end
 

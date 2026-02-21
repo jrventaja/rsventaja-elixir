@@ -37,10 +37,12 @@ defmodule Ersventaja.Policies do
   def add_policy(attrs) do
     with request <- RequestAdapter.create_policy_request(attrs) do
       # Handle both base64 encoded and binary file content
-      file_content = case Base.decode64(request.encoded_file) do
-        {:ok, decoded} -> decoded
-        :error -> request.encoded_file  # Already binary
-      end
+      file_content =
+        case Base.decode64(request.encoded_file) do
+          {:ok, decoded} -> decoded
+          # Already binary
+          :error -> request.encoded_file
+        end
 
       policy =
         Repo.insert!(%Policy{
@@ -128,7 +130,9 @@ defmodule Ersventaja.Policies do
 
   def get_policy(id) when is_integer(id) do
     case Repo.get(Policy, id) do
-      nil -> nil
+      nil ->
+        nil
+
       policy ->
         policy
         |> Repo.preload([:insurer])
@@ -180,7 +184,9 @@ defmodule Ersventaja.Policies do
 
   def update_policy_customer_info(id, attrs) when is_integer(id) do
     case Repo.get(Policy, id) do
-      nil -> {:error, :not_found}
+      nil ->
+        {:error, :not_found}
+
       policy ->
         policy
         |> change(attrs)
@@ -190,20 +196,24 @@ defmodule Ersventaja.Policies do
 
   def update_policy(id, attrs) when is_integer(id) do
     case Repo.get(Policy, id) do
-      nil -> {:error, :not_found}
+      nil ->
+        {:error, :not_found}
+
       policy ->
-        changeset = policy
-        |> change(%{
-          customer_name: Map.get(attrs, "customer_name", policy.customer_name),
-          detail: Map.get(attrs, "detail", policy.detail),
-          start_date: parse_date(Map.get(attrs, "start_date")),
-          end_date: parse_date(Map.get(attrs, "end_date")),
-          insurer_id: parse_integer(Map.get(attrs, "insurer_id")),
-          customer_cpf_or_cnpj: Map.get(attrs, "customer_cpf_or_cnpj", policy.customer_cpf_or_cnpj),
-          customer_phone: Map.get(attrs, "customer_phone", policy.customer_phone),
-          customer_email: Map.get(attrs, "customer_email", policy.customer_email),
-          license_plate: Map.get(attrs, "license_plate", policy.license_plate)
-        })
+        changeset =
+          policy
+          |> change(%{
+            customer_name: Map.get(attrs, "customer_name", policy.customer_name),
+            detail: Map.get(attrs, "detail", policy.detail),
+            start_date: parse_date(Map.get(attrs, "start_date")),
+            end_date: parse_date(Map.get(attrs, "end_date")),
+            insurer_id: parse_integer(Map.get(attrs, "insurer_id")),
+            customer_cpf_or_cnpj:
+              Map.get(attrs, "customer_cpf_or_cnpj", policy.customer_cpf_or_cnpj),
+            customer_phone: Map.get(attrs, "customer_phone", policy.customer_phone),
+            customer_email: Map.get(attrs, "customer_email", policy.customer_email),
+            license_plate: Map.get(attrs, "license_plate", policy.license_plate)
+          })
 
         case Repo.update(changeset) do
           {:ok, updated_policy} ->
@@ -212,7 +222,9 @@ defmodule Ersventaja.Policies do
             |> then(fn p -> Map.merge(p, %{file_name: get_file_name(p.id)}) end)
             |> policy_to_response()
             |> then(&{:ok, &1})
-          {:error, changeset} -> {:error, changeset}
+
+          {:error, changeset} ->
+            {:error, changeset}
         end
     end
   end
@@ -220,6 +232,7 @@ defmodule Ersventaja.Policies do
   defp parse_date(nil), do: nil
   defp parse_date(""), do: nil
   defp parse_date(%Date{} = date), do: date
+
   defp parse_date(date_string) when is_binary(date_string) do
     case Date.from_iso8601(date_string) do
       {:ok, date} -> date
@@ -230,6 +243,7 @@ defmodule Ersventaja.Policies do
   defp parse_integer(nil), do: nil
   defp parse_integer(""), do: nil
   defp parse_integer(value) when is_integer(value), do: value
+
   defp parse_integer(value) when is_binary(value) do
     case Integer.parse(value) do
       {int, _} -> int

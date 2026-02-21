@@ -12,6 +12,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
   @impl true
   def mount(_params, session, socket) do
     token = Map.get(session, "guardian_default_token")
+
     case token && Guardian.resource_from_token(token) do
       {:ok, user, _claims} ->
         policies = Policies.last_30_days()
@@ -27,17 +28,19 @@ defmodule ErsventajaWeb.ControlPanelLive do
           |> assign(query_current_result: [])
           |> assign(query: "")
           |> assign(query_result: [])
-          |> assign(insert_form: %{
-            name: "",
-            insurer_id: "",
-            detail: "",
-            start_date: "",
-            end_date: "",
-            customer_cpf_or_cnpj: "",
-            customer_phone: "",
-            customer_email: "",
-            encoded_file: nil
-          })
+          |> assign(
+            insert_form: %{
+              name: "",
+              insurer_id: "",
+              detail: "",
+              start_date: "",
+              end_date: "",
+              customer_cpf_or_cnpj: "",
+              customer_phone: "",
+              customer_email: "",
+              encoded_file: nil
+            }
+          )
           |> assign(adding_policy: false)
           |> assign(new_insurer_name: "")
           |> assign(file_selected_shown: false)
@@ -49,7 +52,12 @@ defmodule ErsventajaWeb.ControlPanelLive do
           |> assign(selected_policy: nil)
           |> assign(editing_policy: false)
           |> assign(edit_form: %{})
-          |> allow_upload(:file, accept: ~w(.pdf), max_entries: 1, max_file_size: 10_000_000, auto_upload: true)
+          |> allow_upload(:file,
+            accept: ~w(.pdf),
+            max_entries: 1,
+            max_file_size: 10_000_000,
+            auto_upload: true
+          )
 
         {:ok, socket}
 
@@ -64,11 +72,12 @@ defmodule ErsventajaWeb.ControlPanelLive do
     socket = assign(socket, active_tab: tab)
 
     # Refresh insurers list when switching to insurers tab
-    socket = if tab == "insurers" do
-      assign(socket, insurers: Policies.get_insurers())
-    else
-      socket
-    end
+    socket =
+      if tab == "insurers" do
+        assign(socket, insurers: Policies.get_insurers())
+      else
+        socket
+      end
 
     {:noreply, socket}
   end
@@ -87,11 +96,12 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
     # Determine new status: if checkbox sends "value" => "on", it means it's being checked
     # Otherwise, toggle based on current state
-    new_status = case params do
-      %{"value" => "on"} -> true
-      %{"value" => _} -> false
-      _ -> if policy, do: !policy.calculated, else: false
-    end
+    new_status =
+      case params do
+        %{"value" => "on"} -> true
+        %{"value" => _} -> false
+        _ -> if policy, do: !policy.calculated, else: false
+      end
 
     Policies.update_status(id, new_status)
     policies = Policies.last_30_days()
@@ -136,7 +146,9 @@ defmodule ErsventajaWeb.ControlPanelLive do
       # Remove from all lists and close details
       policies = Policies.last_30_days()
       query_result = Enum.reject(socket.assigns.query_result, fn p -> p.id == id end)
-      query_current_result = Enum.reject(socket.assigns.query_current_result, fn p -> p.id == id end)
+
+      query_current_result =
+        Enum.reject(socket.assigns.query_current_result, fn p -> p.id == id end)
 
       socket =
         socket
@@ -165,7 +177,8 @@ defmodule ErsventajaWeb.ControlPanelLive do
       Policies.delete_policy(id)
       Logger.info("Policy #{id} deleted successfully")
 
-      query_result = Enum.reject(socket.assigns.query_result, fn p -> p.id == String.to_integer(id) end)
+      query_result =
+        Enum.reject(socket.assigns.query_result, fn p -> p.id == String.to_integer(id) end)
 
       socket =
         socket
@@ -196,6 +209,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
   @impl true
   def handle_event("start_edit_policy", _params, socket) do
     policy = socket.assigns.selected_policy
+
     edit_form = %{
       "customer_name" => policy.customer_name || "",
       "detail" => policy.detail || "",
@@ -207,6 +221,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
       "customer_email" => policy[:customer_email] || "",
       "license_plate" => policy[:license_plate] || ""
     }
+
     {:noreply, assign(socket, editing_policy: true, edit_form: edit_form)}
   end
 
@@ -244,7 +259,9 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
         # Update query results if the policy is in them
         query_result = update_policy_in_list(socket.assigns.query_result, updated_policy)
-        query_current_result = update_policy_in_list(socket.assigns.query_current_result, updated_policy)
+
+        query_current_result =
+          update_policy_in_list(socket.assigns.query_current_result, updated_policy)
 
         socket =
           socket
@@ -261,7 +278,12 @@ defmodule ErsventajaWeb.ControlPanelLive do
         {:noreply, socket}
 
       {:error, _reason} ->
-        {:noreply, socket |> put_flash(:error, "Erro ao atualizar a apólice. Verifique os dados e tente novamente.")}
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           "Erro ao atualizar a apólice. Verifique os dados e tente novamente."
+         )}
     end
   end
 
@@ -279,17 +301,20 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
     if valid_insert_form?(form_params, socket) do
       # Use file content from OCR processing if available, otherwise consume upload
-      file = if socket.assigns[:ocr_file_content] do
-        socket.assigns.ocr_file_content
-      else
-        # Fallback: consume uploaded file if OCR wasn't processed
-        [consumed_file] = consume_uploaded_entries(socket, :file, fn %{path: path}, _entry ->
-          content = File.read!(path)
-          encoded = Base.encode64(content)
-          {:ok, encoded}
-        end)
-        consumed_file
-      end
+      file =
+        if socket.assigns[:ocr_file_content] do
+          socket.assigns.ocr_file_content
+        else
+          # Fallback: consume uploaded file if OCR wasn't processed
+          [consumed_file] =
+            consume_uploaded_entries(socket, :file, fn %{path: path}, _entry ->
+              content = File.read!(path)
+              encoded = Base.encode64(content)
+              {:ok, encoded}
+            end)
+
+          consumed_file
+        end
 
       attrs = %{
         "name" => String.upcase(form_params["name"] || ""),
@@ -331,7 +356,10 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
       {:noreply, socket}
     else
-      {:noreply, socket |> put_flash(:warning, "Favor preencher todos os campos antes de prosseguir!") |> assign(adding_policy: false)}
+      {:noreply,
+       socket
+       |> put_flash(:warning, "Favor preencher todos os campos antes de prosseguir!")
+       |> assign(adding_policy: false)}
     end
   end
 
@@ -357,24 +385,37 @@ defmodule ErsventajaWeb.ControlPanelLive do
   end
 
   @impl true
-  def handle_event("progress", %{"upload" => "file", "entry" => entry_ref, "progress" => progress}, socket) do
+  def handle_event(
+        "progress",
+        %{"upload" => "file", "entry" => entry_ref, "progress" => progress},
+        socket
+      ) do
     require Logger
-    Logger.info("Progress event received: entry=#{inspect(entry_ref)}, progress=#{inspect(progress)}, processing_ocr=#{socket.assigns.processing_ocr}")
+
+    Logger.info(
+      "Progress event received: entry=#{inspect(entry_ref)}, progress=#{inspect(progress)}, processing_ocr=#{socket.assigns.processing_ocr}"
+    )
 
     # Convert progress to number if it's a string
-    progress_num = case progress do
-      p when is_integer(p) -> p
-      p when is_binary(p) ->
-        case Integer.parse(p) do
-          {num, _} -> num
-          :error ->
-            Logger.warn("Could not parse progress as integer: #{inspect(p)}")
-            0
-        end
-      _ ->
-        Logger.warn("Unexpected progress type: #{inspect(progress)}")
-        0
-    end
+    progress_num =
+      case progress do
+        p when is_integer(p) ->
+          p
+
+        p when is_binary(p) ->
+          case Integer.parse(p) do
+            {num, _} ->
+              num
+
+            :error ->
+              Logger.warn("Could not parse progress as integer: #{inspect(p)}")
+              0
+          end
+
+        _ ->
+          Logger.warn("Unexpected progress type: #{inspect(progress)}")
+          0
+      end
 
     Logger.info("Parsed progress: #{progress_num}")
 
@@ -388,6 +429,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
       if socket.assigns.processing_ocr do
         Logger.debug("Already processing OCR, ignoring progress event")
       end
+
       {:noreply, socket}
     end
   end
@@ -398,13 +440,27 @@ defmodule ErsventajaWeb.ControlPanelLive do
       try do
         Policies.add_insurer(String.trim(name))
         insurers = Policies.get_insurers()
-        {:noreply, socket |> put_flash(:success, "Operação realizada com sucesso!") |> assign(insurers: insurers, new_insurer_name: "")}
+
+        {:noreply,
+         socket
+         |> put_flash(:success, "Operação realizada com sucesso!")
+         |> assign(insurers: insurers, new_insurer_name: "")}
       rescue
         _ ->
-          {:noreply, socket |> put_flash(:error, "Erro ao realizar a operação. Verifique se a seguradora não está sendo usada em alguma apólice.")}
+          {:noreply,
+           socket
+           |> put_flash(
+             :error,
+             "Erro ao realizar a operação. Verifique se a seguradora não está sendo usada em alguma apólice."
+           )}
       end
     else
-      {:noreply, socket |> put_flash(:error, "Erro ao realizar a operação. Verifique se a seguradora não está sendo usada em alguma apólice.")}
+      {:noreply,
+       socket
+       |> put_flash(
+         :error,
+         "Erro ao realizar a operação. Verifique se a seguradora não está sendo usada em alguma apólice."
+       )}
     end
   end
 
@@ -418,10 +474,19 @@ defmodule ErsventajaWeb.ControlPanelLive do
     try do
       Policies.delete_insurer(String.to_integer(id))
       insurers = Policies.get_insurers()
-      {:noreply, socket |> put_flash(:success, "Operação realizada com sucesso!") |> assign(insurers: insurers)}
+
+      {:noreply,
+       socket
+       |> put_flash(:success, "Operação realizada com sucesso!")
+       |> assign(insurers: insurers)}
     rescue
       _ ->
-        {:noreply, socket |> put_flash(:error, "Erro ao realizar a operação. Verifique se a seguradora não está sendo usada em alguma apólice.")}
+        {:noreply,
+         socket
+         |> put_flash(
+           :error,
+           "Erro ao realizar a operação. Verifique se a seguradora não está sendo usada em alguma apólice."
+         )}
     end
   end
 
@@ -434,12 +499,13 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
   # Private helper functions
 
-
   defp check_and_process_uploads(socket) do
     require Logger
     {completed_entries, in_progress_entries} = uploaded_entries(socket, :file)
 
-    Logger.info("check_and_process_uploads called - completed: #{length(completed_entries)}, in_progress: #{length(in_progress_entries)}, processing_ocr: #{socket.assigns.processing_ocr}")
+    Logger.info(
+      "check_and_process_uploads called - completed: #{length(completed_entries)}, in_progress: #{length(in_progress_entries)}, processing_ocr: #{socket.assigns.processing_ocr}"
+    )
 
     # If there are in-progress uploads, start periodic checking
     if length(in_progress_entries) > 0 && not Map.get(socket.assigns, :upload_checking, false) do
@@ -449,32 +515,39 @@ defmodule ErsventajaWeb.ControlPanelLive do
       {:noreply, socket}
     else
       if length(completed_entries) > 0 do
-        Logger.info("Completed entries details: #{inspect(Enum.map(completed_entries, fn e -> %{ref: e.ref, done?: e.done?, client_name: e.client_name} end))}")
+        Logger.info(
+          "Completed entries details: #{inspect(Enum.map(completed_entries, fn e -> %{ref: e.ref, done?: e.done?, client_name: e.client_name} end))}"
+        )
       end
 
       if length(completed_entries) > 0 && not socket.assigns.processing_ocr do
         completed_entry = Enum.find(completed_entries, fn e -> e.done? end)
 
         if completed_entry do
-          Logger.info("Found completed upload entry, starting OCR. File: #{completed_entry.client_name}")
+          Logger.info(
+            "Found completed upload entry, starting OCR. File: #{completed_entry.client_name}"
+          )
+
           socket = assign(socket, processing_ocr: true, upload_checking: false)
 
           # Consume entry to get file content for OCR
           # The file will be re-attached via JavaScript to keep it visible
           try do
-            result = consume_uploaded_entries(socket, :file, fn %{path: path}, entry ->
-              content = File.read!(path)
-              encoded = Base.encode64(content)
-              {:ok, %{content: content, encoded: encoded, client_name: entry.client_name}}
-            end)
+            result =
+              consume_uploaded_entries(socket, :file, fn %{path: path}, entry ->
+                content = File.read!(path)
+                encoded = Base.encode64(content)
+                {:ok, %{content: content, encoded: encoded, client_name: entry.client_name}}
+              end)
 
             case result do
               [%{content: file_content, encoded: encoded_content, client_name: client_name}] ->
                 # Store file content in socket for form submission
-                socket = assign(socket,
-                  ocr_file_content: encoded_content,
-                  ocr_file_name: client_name
-                )
+                socket =
+                  assign(socket,
+                    ocr_file_content: encoded_content,
+                    ocr_file_name: client_name
+                  )
 
                 # Save file content to a temporary file for OCR processing
                 temp_file = System.tmp_dir!() |> Path.join("ocr_#{:rand.uniform(1_000_000)}.pdf")
@@ -482,16 +555,22 @@ defmodule ErsventajaWeb.ControlPanelLive do
                 Logger.info("Saved file to temp location: #{temp_file}")
 
                 insurers = socket.assigns.insurers
-                Logger.info("Processing OCR with #{length(insurers)} insurers available, file path: #{temp_file}")
+
+                Logger.info(
+                  "Processing OCR with #{length(insurers)} insurers available, file path: #{temp_file}"
+                )
 
                 pid = self()
+
                 Task.start(fn ->
                   Logger.info("OCR task started for file: #{temp_file}")
+
                   try do
                     case OCR.extract_policy_info(temp_file, insurers) do
                       {:ok, info} ->
                         Logger.info("OCR completed successfully")
                         send(pid, {:ocr_complete, info})
+
                       {:error, reason} ->
                         Logger.error("OCR failed: #{inspect(reason)}")
                         send(pid, {:ocr_error, reason})
@@ -503,6 +582,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
                 end)
 
                 {:noreply, socket}
+
               _ ->
                 Logger.error("Failed to consume upload entry")
                 {:noreply, assign(socket, processing_ocr: false, upload_checking: false)}
@@ -520,6 +600,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
         if socket.assigns.processing_ocr do
           Logger.debug("Already processing OCR, skipping")
         end
+
         {:noreply, socket}
       end
     end
@@ -537,7 +618,9 @@ defmodule ErsventajaWeb.ControlPanelLive do
     require Logger
     {completed_entries, in_progress_entries} = uploaded_entries(socket, :file)
 
-    Logger.info("Periodic upload check - Completed: #{length(completed_entries)}, In progress: #{length(in_progress_entries)}")
+    Logger.info(
+      "Periodic upload check - Completed: #{length(completed_entries)}, In progress: #{length(in_progress_entries)}"
+    )
 
     if length(in_progress_entries) > 0 do
       Logger.info("Upload still in progress, will check again in 1 second")
@@ -561,13 +644,18 @@ defmodule ErsventajaWeb.ControlPanelLive do
     start_date = Map.get(info, "start_date") || Map.get(info, :start_date)
     end_date = Map.get(info, "end_date") || Map.get(info, :end_date)
     customer_name = Map.get(info, "customer_name") || Map.get(info, :customer_name) || ""
-    customer_cpf_or_cnpj = Map.get(info, "customer_cpf_or_cnpj") || Map.get(info, :customer_cpf_or_cnpj) || ""
+
+    customer_cpf_or_cnpj =
+      Map.get(info, "customer_cpf_or_cnpj") || Map.get(info, :customer_cpf_or_cnpj) || ""
+
     customer_phone = Map.get(info, "customer_phone") || Map.get(info, :customer_phone) || ""
     customer_email = Map.get(info, "customer_email") || Map.get(info, :customer_email) || ""
     insurer_id = Map.get(info, "insurer_id") || Map.get(info, :insurer_id)
     license_plate = Map.get(info, "license_plate") || Map.get(info, :license_plate) || ""
 
-    Logger.info("Extracted data - name: #{customer_name}, insurer_id: #{inspect(insurer_id)}, license_plate: #{license_plate}")
+    Logger.info(
+      "Extracted data - name: #{customer_name}, insurer_id: #{inspect(insurer_id)}, license_plate: #{license_plate}"
+    )
 
     # Use license_plate for detail if it's a car insurance (has license plate)
     detail = if license_plate != "", do: license_plate, else: ""
@@ -577,17 +665,19 @@ defmodule ErsventajaWeb.ControlPanelLive do
     end_date_str = if end_date, do: Date.to_iso8601(end_date), else: ""
     insurer_id_str = if insurer_id, do: Integer.to_string(insurer_id), else: ""
 
-    updated_form = socket.assigns.insert_form
-    |> Map.put("name", customer_name)
-    |> Map.put("start_date", start_date_str)
-    |> Map.put("end_date", end_date_str)
-    |> Map.put("customer_cpf_or_cnpj", customer_cpf_or_cnpj)
-    |> Map.put("customer_phone", customer_phone)
-    |> Map.put("customer_email", customer_email)
-    |> Map.put("detail", detail)
-    |> Map.put("insurer_id", insurer_id_str)
+    updated_form =
+      socket.assigns.insert_form
+      |> Map.put("name", customer_name)
+      |> Map.put("start_date", start_date_str)
+      |> Map.put("end_date", end_date_str)
+      |> Map.put("customer_cpf_or_cnpj", customer_cpf_or_cnpj)
+      |> Map.put("customer_phone", customer_phone)
+      |> Map.put("customer_email", customer_email)
+      |> Map.put("detail", detail)
+      |> Map.put("insurer_id", insurer_id_str)
 
     Logger.info("Form updated with extracted data")
+
     socket =
       socket
       |> assign(insert_form: updated_form, processing_ocr: false, ocr_complete: true)
@@ -601,10 +691,14 @@ defmodule ErsventajaWeb.ControlPanelLive do
     require Logger
     Logger.error("OCR error received: #{inspect(reason)}")
     error_message = format_ocr_error(reason)
+
     socket =
       socket
       |> assign(processing_ocr: false)
-      |> put_flash(:warning, "Não foi possível extrair informações do PDF: #{error_message}. Preencha os campos manualmente.")
+      |> put_flash(
+        :warning,
+        "Não foi possível extrair informações do PDF: #{error_message}. Preencha os campos manualmente."
+      )
 
     {:noreply, socket}
   end
@@ -619,8 +713,9 @@ defmodule ErsventajaWeb.ControlPanelLive do
   # Private helper functions
 
   defp valid_insert_form?(form, socket) do
-    has_file = Enum.any?(socket.assigns.uploads.file.entries) ||
-               Map.has_key?(socket.assigns, :ocr_file_content)
+    has_file =
+      Enum.any?(socket.assigns.uploads.file.entries) ||
+        Map.has_key?(socket.assigns, :ocr_file_content)
 
     String.length(form["name"] || "") > 0 &&
       String.length(form["detail"] || "") > 0 &&
@@ -661,11 +756,11 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
   defp find_policy_by_id(socket, id) do
     # Search in all available policy lists
-    Enum.find(socket.assigns.policies, fn p -> p.id == id end) ||
-    Enum.find(socket.assigns.query_result, fn p -> p.id == id end) ||
-    Enum.find(socket.assigns.query_current_result, fn p -> p.id == id end) ||
     # If not found in cached lists, fetch from database
-    Policies.get_policy(id)
+    Enum.find(socket.assigns.policies, fn p -> p.id == id end) ||
+      Enum.find(socket.assigns.query_result, fn p -> p.id == id end) ||
+      Enum.find(socket.assigns.query_current_result, fn p -> p.id == id end) ||
+      Policies.get_policy(id)
   end
 
   defp update_policy_in_list(list, updated_policy) do
@@ -676,14 +771,29 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
   defp format_ocr_error(reason) when is_tuple(reason) do
     case reason do
-      {:ocr_error, message} when is_binary(message) -> message
-      {:ocr_error, _} -> "Erro no processamento OCR"
-      {:ocr_exit, _} -> "Erro ao executar OCR"
-      {:parsing_error, message} when is_binary(message) -> "Erro ao analisar o documento: #{message}"
-      {:parsing_error, _} -> "Erro ao analisar o documento"
-      {:file_write_error, _} -> "Erro ao salvar arquivo temporário"
-      {:invalid_base64, _} -> "Arquivo inválido"
-      _ -> "Erro desconhecido: #{inspect(reason)}"
+      {:ocr_error, message} when is_binary(message) ->
+        message
+
+      {:ocr_error, _} ->
+        "Erro no processamento OCR"
+
+      {:ocr_exit, _} ->
+        "Erro ao executar OCR"
+
+      {:parsing_error, message} when is_binary(message) ->
+        "Erro ao analisar o documento: #{message}"
+
+      {:parsing_error, _} ->
+        "Erro ao analisar o documento"
+
+      {:file_write_error, _} ->
+        "Erro ao salvar arquivo temporário"
+
+      {:invalid_base64, _} ->
+        "Arquivo inválido"
+
+      _ ->
+        "Erro desconhecido: #{inspect(reason)}"
     end
   end
 
@@ -703,32 +813,34 @@ defmodule ErsventajaWeb.ControlPanelLive do
     ~H"""
     <.toast flash={@flash} />
     <style>
-      body { margin: 0; padding: 0; font-family: 'Playfair Display', Georgia, serif; color: #504f4f; }
+      .control-panel-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+      #toast-container p { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+      body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; color: #504f4f; }
 
       /* Main Content */
       .main-content { padding-top: 0; background-color: white; min-height: 100vh; }
       .section { padding: 3em 2em; text-align: center; width: 100%; max-width: 100%; }
 
       /* Tabs */
-      .tab-button { padding: 1em 1.5em; font-size: 16px; font-weight: 500; border: none; background: transparent; cursor: pointer; transition: all 0.2s; font-family: 'Playfair Display', Georgia, serif; display: flex; align-items: center; justify-content: center; gap: 0.5em; }
+      .tab-button { padding: 1em 1.5em; font-size: 16px; font-weight: 500; border: none; background: transparent; cursor: pointer; transition: all 0.2s; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; display: flex; align-items: center; justify-content: center; gap: 0.5em; }
       .tab-button.active { background: linear-gradient(90deg, #3D5FA3 0%, #4A7AC2 35%, #5B9BD5 70%, #7DCDEB 100%); color: white; border-radius: 4px; }
       .tab-button:not(.active) { color: #666; }
       .tab-button:not(.active):hover { background-color: rgba(61, 95, 163, 0.1); border-radius: 4px; }
       .tab-button i { margin: 0; }
 
       /* Buttons */
-      .btn-primary { background: linear-gradient(90deg, #3D5FA3 0%, #4A7AC2 35%, #5B9BD5 70%, #7DCDEB 100%); color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; font-family: 'Playfair Display', Georgia, serif; font-size: 16px; }
+      .btn-primary { background: linear-gradient(90deg, #3D5FA3 0%, #4A7AC2 35%, #5B9BD5 70%, #7DCDEB 100%); color: white; padding: 12px 24px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 16px; }
       .btn-primary:hover { background: rgba(255, 255, 255, 0.85); color: #1e3a6e; font-weight: 600; border: 1px solid #7DCDEB; }
       .btn-primary i { margin: 0; }
-      .btn-danger { background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-family: 'Playfair Display', Georgia, serif; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
+      .btn-danger { background: linear-gradient(90deg, #dc2626 0%, #ef4444 100%); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
       .btn-danger:hover { background: rgba(255, 255, 255, 0.9); color: #991b1b; font-weight: 600; border: 1px solid #fca5a5; }
       .btn-danger i { margin: 0; }
 
       /* Tables */
       .table-container { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 2em; margin: 2em 0; }
       .table-container table { width: 100%; border-collapse: collapse; }
-      .table-container th { padding: 1em; text-align: left; font-size: 14px; font-weight: 600; color: #504f4f; border-bottom: 2px solid #e5e7eb; font-family: 'Playfair Display', Georgia, serif; }
-      .table-container td { padding: 1em; font-size: 15px; color: #504f4f; border-bottom: 1px solid #f3f4f6; font-family: 'Playfair Display', Georgia, serif; }
+      .table-container th { padding: 1em; text-align: left; font-size: 14px; font-weight: 600; color: #504f4f; border-bottom: 2px solid #e5e7eb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+      .table-container td { padding: 1em; font-size: 15px; color: #504f4f; border-bottom: 1px solid #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
       .table-container tr:hover { background-color: #f9fafb; }
       .table-container tr.hover-row { transition: all 0.2s ease; }
       .table-container tr.hover-row:hover { background-color: #e0f2fe; box-shadow: 0 2px 4px rgba(74, 122, 194, 0.1); }
@@ -736,11 +848,11 @@ defmodule ErsventajaWeb.ControlPanelLive do
       .table-container tr.hover-row:hover td:first-child { border-left: 3px solid #4A7AC2; }
 
       /* Secondary Button */
-      .btn-secondary { background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-family: 'Playfair Display', Georgia, serif; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
+      .btn-secondary { background: linear-gradient(90deg, #64748b 0%, #94a3b8 100%); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
       .btn-secondary:hover { background: rgba(255, 255, 255, 0.9); color: #475569; font-weight: 600; border: 1px solid #cbd5e1; }
 
       /* Success Button */
-      .btn-success { background: linear-gradient(90deg, #059669 0%, #10b981 100%); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-family: 'Playfair Display', Georgia, serif; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
+      .btn-success { background: linear-gradient(90deg, #059669 0%, #10b981 100%); color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 0.5em; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
       .btn-success:hover { background: rgba(255, 255, 255, 0.9); color: #059669; font-weight: 600; border: 1px solid #6ee7b7; }
 
       /* Forms - Override Tailwind and browser defaults */
@@ -755,7 +867,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
         border: 2px solid #e5e7eb !important;
         border-radius: 8px !important;
         font-size: 15px !important;
-        font-family: 'Playfair Display', Georgia, serif !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
         box-sizing: border-box !important;
         height: 44px !important;
         line-height: 1.5 !important;
@@ -835,7 +947,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
       }
       input[type="file"].form-input::file-selector-button {
         font-size: 14px !important;
-        font-family: 'Playfair Display', Georgia, serif !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
         padding: 10px 16px !important;
         margin-right: 10px !important;
         border-radius: 8px !important;
@@ -861,7 +973,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
       }
       input[type="file"].form-input::-webkit-file-upload-button {
         font-size: 14px !important;
-        font-family: 'Playfair Display', Georgia, serif !important;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
         padding: 10px 16px !important;
         margin-right: 10px !important;
         border-radius: 8px !important;
@@ -885,7 +997,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
       }
     </style>
 
-    <div class="min-h-screen bg-gray-50">
+    <div class="control-panel-body min-h-screen bg-gray-50">
       <.navbar />
       <.hero title="Painel de Controle" subtitle="Gerenciamento de Apólices" />
 
@@ -962,7 +1074,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
               <% end %>
             </div>
 
-            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">
+            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
               <%= if @editing_policy, do: "Editar Apólice", else: "Detalhes da Apólice" %>
             </h2>
 
@@ -972,7 +1084,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5em; margin-bottom: 2em;">
                   <!-- Customer Info Card -->
                   <div style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; padding: 1.5em; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                    <h3 style="color: #4A7AC2; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
+                    <h3 style="color: #4A7AC2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
                       <i class="fas fa-user"></i> Dados do Cliente
                     </h3>
                     <div style="display: flex; flex-direction: column; gap: 1em;">
@@ -1027,7 +1139,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
                   <!-- Policy Info Card -->
                   <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; padding: 1.5em; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                    <h3 style="color: #4A7AC2; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
+                    <h3 style="color: #4A7AC2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
                       <i class="fas fa-file-contract"></i> Dados da Apólice
                     </h3>
                     <div style="display: flex; flex-direction: column; gap: 1em;">
@@ -1071,7 +1183,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
                   <!-- Dates Card -->
                   <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; padding: 1.5em; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                    <h3 style="color: #059669; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
+                    <h3 style="color: #059669; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
                       <i class="fas fa-calendar-alt"></i> Vigência
                     </h3>
                     <div style="display: flex; flex-direction: column; gap: 1em;">
@@ -1121,7 +1233,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5em;">
                 <!-- Customer Info Card -->
                 <div style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; padding: 1.5em; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                  <h3 style="color: #4A7AC2; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
+                  <h3 style="color: #4A7AC2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
                     <i class="fas fa-user"></i> Dados do Cliente
                   </h3>
                   <div style="display: flex; flex-direction: column; gap: 0.75em;">
@@ -1162,7 +1274,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
                 <!-- Policy Info Card -->
                 <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 12px; padding: 1.5em; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                  <h3 style="color: #4A7AC2; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
+                  <h3 style="color: #4A7AC2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
                     <i class="fas fa-file-contract"></i> Dados da Apólice
                   </h3>
                   <div style="display: flex; flex-direction: column; gap: 0.75em;">
@@ -1188,7 +1300,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
                 <!-- Dates Card -->
                 <div style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-radius: 12px; padding: 1.5em; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                  <h3 style="color: #059669; font-family: 'Playfair Display', Georgia, serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
+                  <h3 style="color: #059669; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
                     <i class="fas fa-calendar-alt"></i> Vigência
                   </h3>
                   <div style="display: flex; flex-direction: column; gap: 0.75em;">
@@ -1251,7 +1363,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
         <%= if @active_tab == "due" do %>
           <div class="table-container">
-            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Apólices com vencimento nos próximos 30 dias</h2>
+            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Apólices com vencimento nos próximos 30 dias</h2>
             <div class="overflow-x-auto">
               <table>
                 <thead>
@@ -1308,7 +1420,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
         <%= if @active_tab == "current" do %>
           <div class="table-container">
 
-            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Buscar apólices vigentes</h2>
+            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Buscar apólices vigentes</h2>
 
             <form phx-submit="query_current" style="margin-bottom: 2em;">
               <div style="max-width: 600px;">
@@ -1378,7 +1490,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
         <%= if @active_tab == "all" do %>
           <div class="table-container">
 
-            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Buscar apólices</h2>
+            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Buscar apólices</h2>
 
             <form phx-submit="query_all" style="margin-bottom: 2em;">
               <div style="max-width: 600px;">
@@ -1452,7 +1564,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
         <%= if @active_tab == "register" do %>
           <div class="table-container">
 
-            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Cadastrar apólice</h2>
+            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Cadastrar apólice</h2>
 
             <%= if @adding_policy do %>
               <div class="flex justify-center items-center py-8">
@@ -1468,10 +1580,10 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
               <!-- Arquivo PDF - sempre visível -->
               <div style="margin-bottom: 1.5em;">
-                <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Arquivo PDF</label>
+                <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Arquivo PDF</label>
                 <div style="position: relative; width: 100%; min-width: 0;" id="file-upload-container">
                   <%= if Map.get(assigns, :ocr_file_name) && !@processing_ocr do %>
-                    <div style="padding: 12px; background-color: #f9fafb; border: 2px solid #4A7AC2; border-radius: 8px; color: #059669; font-family: 'Playfair Display', Georgia, serif; font-size: 15px; display: flex; align-items: center; gap: 0.5em;">
+                    <div style="padding: 12px; background-color: #f9fafb; border: 2px solid #4A7AC2; border-radius: 8px; color: #059669; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 15px; display: flex; align-items: center; gap: 0.5em;">
                       <i class="fas fa-file-pdf" style="color: #4A7AC2;"></i>
                       <span>✓ Arquivo processado: <%= Map.get(assigns, :ocr_file_name) %></span>
                     </div>
@@ -1495,11 +1607,11 @@ defmodule ErsventajaWeb.ControlPanelLive do
                 </div>
                 <%= for {err, idx} <- Enum.with_index(upload_errors(@uploads.file)) do %>
                   <div class="mt-3 bg-red-50 border-l-4 border-red-400 p-3 rounded" id={"upload-error-#{idx}"}>
-                    <p class="text-base text-red-700 font-serif"><%= error_to_string(err) %></p>
+                    <p class="text-base text-red-700"><%= error_to_string(err) %></p>
                   </div>
                 <% end %>
                 <%= if !Map.get(assigns, :ocr_file_name) && !@processing_ocr do %>
-                  <p style="margin-top: 0.75em; font-size: 14px; color: #64748b; font-family: 'Playfair Display', Georgia, serif;">
+                  <p style="margin-top: 0.75em; font-size: 14px; color: #64748b; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
                     <i class="fas fa-info-circle" style="margin-right: 0.25em;"></i>
                     Selecione um arquivo PDF para carregar automaticamente os dados da apólice.
                   </p>
@@ -1651,10 +1763,10 @@ defmodule ErsventajaWeb.ControlPanelLive do
                           <div style="margin-bottom: 2em;">
                             <i class="fas fa-spinner fa-spin" style="color: #4A7AC2; font-size: 48px;"></i>
                           </div>
-                          <h2 style="color: #4A7AC2; font-family: 'Playfair Display', Georgia, serif; font-size: 24px; margin-bottom: 1em; font-weight: 600;">
+                          <h2 style="color: #4A7AC2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 24px; margin-bottom: 1em; font-weight: 600;">
                             Processando documento...
                           </h2>
-                          <div style="color: #504f4f; font-family: 'Playfair Display', Georgia, serif; font-size: 16px; min-height: 30px; display: flex; align-items: center; justify-content: center; position: relative;">
+                          <div style="color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 16px; min-height: 30px; display: flex; align-items: center; justify-content: center; position: relative;">
                             <span class="ocr-text-item">Analisando estrutura do documento...</span>
                             <span class="ocr-text-item">Extraindo texto do PDF...</span>
                             <span class="ocr-text-item">Processando imagens com OCR...</span>
@@ -1741,8 +1853,8 @@ defmodule ErsventajaWeb.ControlPanelLive do
                   <%= for entry <- @uploads.file.entries do %>
                     <div style="width: 100%; max-width: 300px; display: flex; flex-direction: column; gap: 0.5em; margin-top: 0.5em;">
                       <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="font-size: 14px; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Enviando arquivo...</span>
-                        <span style="font-size: 14px; color: #504f4f; font-family: 'Playfair Display', Georgia, serif; font-weight: 500;"><%= entry.progress %>%</span>
+                        <span style="font-size: 14px; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Enviando arquivo...</span>
+                        <span style="font-size: 14px; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight: 500;"><%= entry.progress %>%</span>
                       </div>
                       <div style="width: 100%; height: 8px; background-color: #e5e7eb; border-radius: 4px; overflow: hidden;">
                         <div style={"height: 100%; background: linear-gradient(90deg, #3D5FA3 0%, #4A7AC2 35%, #5B9BD5 70%, #7DCDEB 100%); border-radius: 4px; transition: width 0.3s ease; width: #{entry.progress}%"}></div>
@@ -1759,11 +1871,11 @@ defmodule ErsventajaWeb.ControlPanelLive do
         <%= if @active_tab == "insurers" do %>
           <div class="table-container">
 
-            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Configurar Seguradoras</h2>
+            <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Configurar Seguradoras</h2>
 
             <!-- Create New Insurer -->
             <div style="margin-bottom: 3em; padding: 2em; background-color: #f9fafb; border-radius: 8px;">
-              <h3 style="font-size: 20px; font-weight: 500; margin-bottom: 1em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Adicionar Nova Seguradora</h3>
+              <h3 style="font-size: 20px; font-weight: 500; margin-bottom: 1em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Adicionar Nova Seguradora</h3>
               <form phx-submit="create_insurer" phx-change="update_insurer_name" style="display: flex; gap: 0.75em; align-items: flex-end;">
                 <div style="flex: 1;">
                   <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f;">
@@ -1791,7 +1903,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
             <!-- List of Insurers -->
             <div>
-              <h3 style="font-size: 20px; font-weight: 500; margin-bottom: 1em; color: #504f4f; font-family: 'Playfair Display', Georgia, serif;">Seguradoras Cadastradas</h3>
+              <h3 style="font-size: 20px; font-weight: 500; margin-bottom: 1em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Seguradoras Cadastradas</h3>
               <%= if length(@insurers) > 0 do %>
                 <div class="overflow-x-auto">
                   <table>
@@ -1822,7 +1934,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
                   </table>
                 </div>
               <% else %>
-                <p style="text-align: center; color: #666; padding: 2em; font-family: 'Playfair Display', Georgia, serif;">Nenhuma seguradora cadastrada ainda.</p>
+                <p style="text-align: center; color: #666; padding: 2em; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Nenhuma seguradora cadastrada ainda.</p>
               <% end %>
             </div>
           </div>
