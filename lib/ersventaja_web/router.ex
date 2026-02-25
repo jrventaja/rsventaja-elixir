@@ -29,6 +29,7 @@ defmodule ErsventajaWeb.Router do
     live("/produtos", ProductsLive, :index)
     live("/seguradoras", InsurersLive, :index)
     live("/contato", ContactLive, :index)
+    live("/privacidade", PrivacidadeLive, :index)
     live("/login", LoginLive, :index)
     get("/session", SessionController, :set_session)
     live("/controlpanel", ControlPanelLive, :index)
