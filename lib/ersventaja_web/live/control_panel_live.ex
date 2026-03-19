@@ -120,7 +120,8 @@ defmodule ErsventajaWeb.ControlPanelLive do
   end
 
   @impl true
-  def handle_event("sort_by", %{"by" => by}, socket) do
+  def handle_event("sort_by", params, socket) do
+    by = params["by"] || params["value"] || socket.assigns.sort_by
     {:noreply, assign(socket, sort_by: by)}
   end
 
@@ -1146,8 +1147,12 @@ defmodule ErsventajaWeb.ControlPanelLive do
       .sort-btn .sort-icon { font-size: 10px; color: #cbd5e1; transition: color 0.15s; }
       .sort-btn:hover .sort-icon, .sort-btn:focus .sort-icon { color: #4A7AC2; }
       .sort-btn.active-sort .sort-icon { color: #4A7AC2; }
-      .mobile-sort-bar { display: none; align-items: center; gap: 0.5em; margin-bottom: 1em; flex-wrap: nowrap; }
-      .sort-dir-btn { background: linear-gradient(90deg, #3D5FA3, #5B9BD5); color: white; border: none; border-radius: 6px; height: 38px; padding: 0 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 13px; font-weight: 600; gap: 0.3em; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      .mobile-sort-bar { display: none; align-items: center; justify-content: flex-end; gap: 0.4em; margin-bottom: 0.6em; flex-wrap: nowrap; }
+      .mobile-sort-bar-label { font-size: 11px; font-weight: 500; color: #aab4be; white-space: nowrap; flex-shrink: 0; }
+      .mobile-sort-bar form { flex: 0 1 auto; margin: 0; }
+      .mobile-sort-bar .form-input { border: 1px solid #e2e8f0 !important; background: #fafbfc !important; font-size: 12px !important; height: 30px !important; padding: 0 1.8em 0 0.5em !important; color: #504f4f; min-width: 0; width: auto; }
+      .sort-dir-btn { background: #eef2f9; color: #3D5FA3; border: 1px solid #c5d3e8; border-radius: 6px; height: 30px; padding: 0 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 12px; font-weight: 600; gap: 0.3em; white-space: nowrap; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      .sort-dir-btn:active { background: #dbe5f5; }
 
       /* ===== CLIENT SEARCH TAB ===== */
       .client-profile { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; padding: 1.5em; margin-bottom: 1.5em; }
@@ -1668,13 +1673,16 @@ defmodule ErsventajaWeb.ControlPanelLive do
             <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Apólices com vencimento nos próximos 30 dias</h2>
             <!-- Mobile sort bar -->
             <div class="mobile-sort-bar">
-              <select class="form-input" style="flex: 1; height: 38px; font-size: 13px;" phx-change="sort_by" name="by">
-                <option value="end_date" selected={@sort_by == "end_date"}>Vencimento</option>
-                <option value="customer_name" selected={@sort_by == "customer_name"}>Nome</option>
-                <option value="insurer" selected={@sort_by == "insurer"}>Seguradora</option>
-                <option value="calculated" selected={@sort_by == "calculated"}>Calculado</option>
-                <option value="start_date" selected={@sort_by == "start_date"}>Início</option>
-              </select>
+              <span class="mobile-sort-bar-label">Ordenar</span>
+              <form phx-change="sort_by" style="flex: 0 1 auto;">
+                <select class="form-input" name="by">
+                  <option value="end_date" selected={@sort_by == "end_date"}>Vencimento</option>
+                  <option value="customer_name" selected={@sort_by == "customer_name"}>Nome</option>
+                  <option value="insurer" selected={@sort_by == "insurer"}>Seguradora</option>
+                  <option value="calculated" selected={@sort_by == "calculated"}>Calculado</option>
+                  <option value="start_date" selected={@sort_by == "start_date"}>Início</option>
+                </select>
+              </form>
               <button class="sort-dir-btn" phx-click="sort" phx-value-by={@sort_by}>
                 <%= if @sort_dir == "asc" do %>
                   <i class="fas fa-arrow-up"></i> Cresc.
@@ -1796,12 +1804,15 @@ defmodule ErsventajaWeb.ControlPanelLive do
             <%= if length(@query_current_result) > 0 do %>
               <!-- Mobile sort bar -->
               <div class="mobile-sort-bar">
-                <select class="form-input" style="flex: 1; height: 38px; font-size: 13px;" phx-change="sort_by" name="by">
-                  <option value="end_date" selected={@sort_by == "end_date"}>Vencimento</option>
-                  <option value="customer_name" selected={@sort_by == "customer_name"}>Nome</option>
-                  <option value="insurer" selected={@sort_by == "insurer"}>Seguradora</option>
-                  <option value="start_date" selected={@sort_by == "start_date"}>Início</option>
-                </select>
+                <span class="mobile-sort-bar-label">Ordenar</span>
+                <form phx-change="sort_by" style="flex: 0 1 auto;">
+                  <select class="form-input" name="by">
+                    <option value="end_date" selected={@sort_by == "end_date"}>Vencimento</option>
+                    <option value="customer_name" selected={@sort_by == "customer_name"}>Nome</option>
+                    <option value="insurer" selected={@sort_by == "insurer"}>Seguradora</option>
+                    <option value="start_date" selected={@sort_by == "start_date"}>Início</option>
+                  </select>
+                </form>
                 <button class="sort-dir-btn" phx-click="sort" phx-value-by={@sort_by}>
                   <%= if @sort_dir == "asc" do %>
                     <i class="fas fa-arrow-up"></i> Cresc.
@@ -1910,13 +1921,16 @@ defmodule ErsventajaWeb.ControlPanelLive do
             <%= if length(@query_result) > 0 do %>
               <!-- Mobile sort bar -->
               <div class="mobile-sort-bar">
-                <select class="form-input" style="flex: 1; height: 38px; font-size: 13px;" phx-change="sort_by" name="by">
-                  <option value="customer_name" selected={@sort_by == "customer_name"}>Nome</option>
-                  <option value="insurer" selected={@sort_by == "insurer"}>Seguradora</option>
-                  <option value="end_date" selected={@sort_by == "end_date"}>Vencimento</option>
-                  <option value="start_date" selected={@sort_by == "start_date"}>Início</option>
-                  <option value="detail" selected={@sort_by == "detail"}>Detalhe</option>
-                </select>
+                <span class="mobile-sort-bar-label">Ordenar</span>
+                <form phx-change="sort_by" style="flex: 0 1 auto;">
+                  <select class="form-input" name="by">
+                    <option value="customer_name" selected={@sort_by == "customer_name"}>Nome</option>
+                    <option value="insurer" selected={@sort_by == "insurer"}>Seguradora</option>
+                    <option value="end_date" selected={@sort_by == "end_date"}>Vencimento</option>
+                    <option value="start_date" selected={@sort_by == "start_date"}>Início</option>
+                    <option value="detail" selected={@sort_by == "detail"}>Detalhe</option>
+                  </select>
+                </form>
                 <button class="sort-dir-btn" phx-click="sort" phx-value-by={@sort_by}>
                   <%= if @sort_dir == "asc" do %>
                     <i class="fas fa-arrow-up"></i> Cresc.
