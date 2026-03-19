@@ -21,6 +21,11 @@ defmodule ErsventajaWeb.HomepageLive do
       .section-title { font-size: 36px; font-weight: 400; letter-spacing: 2px; margin-bottom: 1.5em; font-family: 'Playfair Display', Georgia, serif; }
       .about-text { max-width: 70%; margin: 0 auto; font-size: 20px; line-height: 30px; letter-spacing: 1px; text-indent: 4em; font-family: 'Playfair Display', Georgia, serif; }
 
+      @media (max-width: 768px) {
+        .section { padding: 2em 1.25em; }
+        .section-title { font-size: 26px; letter-spacing: 1px; margin-bottom: 1em; }
+        .about-text { max-width: 100%; font-size: 17px; line-height: 28px; text-indent: 2em; letter-spacing: 0.3px; }
+      }
     </style>
 
     <div class="homepage-wrapper" style="width: 100%; max-width: 100%; margin: 0; padding: 0;">

@@ -22,6 +22,14 @@ defmodule ErsventajaWeb.InsurersLive do
       .insurer-box { text-align: center; display: flex; flex-direction: column; align-items: center; }
       .insurer-box img { width: 80px; height: 80px; object-fit: contain; border-radius: 10%; }
       .insurer-box p { margin-top: 1em; font-size: 16px; color: #504f4f; }
+
+      @media (max-width: 768px) {
+        .insurers-grid { grid-template-columns: repeat(2, 1fr); gap: 2em; padding: 0 1em; margin: 1.5em auto; }
+        .section { padding: 2em 1em; }
+        .section-title { font-size: 28px; letter-spacing: 1px; margin-bottom: 1em; }
+        .insurer-box img { width: 60px; height: 60px; }
+        .insurer-box p { font-size: 14px; margin-top: 0.5em; }
+      }
     </style>
 
     <.navbar />

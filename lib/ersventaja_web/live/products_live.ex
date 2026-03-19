@@ -18,13 +18,27 @@ defmodule ErsventajaWeb.ProductsLive do
       .section-title { font-size: 42px; font-weight: 400; letter-spacing: 2px; margin-bottom: 1.5em; color: #504f4f; }
 
       /* Products */
-      .products-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2em 3em; margin: 2em auto; max-width: 1200px; padding: 0 2em; }
-      .product-card { padding: 1em; text-align: center; }
+      .products-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2em 3em; margin: 2em auto; max-width: 1200px; padding: 0 2em; align-items: stretch; }
+      .product-card { padding: 1em; text-align: center; display: flex; flex-direction: column; align-items: center; }
       .product-title { font-size: 20px; font-weight: 500; margin-bottom: 0.5em; }
       .product-icon { font-size: 80px; margin: 0.5em 0; color: #4A7AC2; }
-      .product-desc { color: #666; margin-bottom: 1em; }
+      .product-desc { color: #666; margin-bottom: 1em; flex: 1; }
       .btn-primary { background: linear-gradient(90deg, #3D5FA3 0%, #4A7AC2 35%, #5B9BD5 70%, #7DCDEB 100%); color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; text-decoration: none; display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: all 0.2s; }
       .btn-primary:hover { background: rgba(255, 255, 255, 0.85); color: #1e3a6e; font-weight: 600; border: 1px solid #7DCDEB; }
+
+      @media (max-width: 768px) {
+        .products-grid { grid-template-columns: repeat(2, 1fr); gap: 1em; padding: 0 1em; }
+        .section { padding: 2em 1em; }
+        .section-title { font-size: 28px; letter-spacing: 1px; margin-bottom: 1em; }
+        .product-icon { font-size: 52px; margin: 0.35em 0; }
+        .product-title { font-size: 15px; }
+        .product-desc { font-size: 14px; margin-bottom: 0.75em; }
+        .btn-primary { padding: 10px 14px; font-size: 14px; width: 100%; text-align: center; }
+        .product-card { padding: 0.75em 0.5em; }
+      }
+      @media (max-width: 400px) {
+        .products-grid { grid-template-columns: 1fr; }
+      }
     </style>
 
     <.navbar />

@@ -995,6 +995,110 @@ defmodule ErsventajaWeb.ControlPanelLive do
       input[type="file"].form-input::after {
         content: "" !important;
       }
+
+      /* ===== MOBILE RESPONSIVE ===== */
+      @media (max-width: 768px) {
+        /* Main content */
+        .main-content-pad { padding: 0.75em !important; }
+
+        /* Tabs: horizontal scroll, no wrap */
+        .tab-nav-scroll {
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: none;
+          flex-wrap: nowrap !important;
+          padding-bottom: 2px;
+        }
+        .tab-nav-scroll::-webkit-scrollbar { display: none; }
+        .tab-button {
+          white-space: nowrap;
+          padding: 0.65em 0.9em !important;
+          font-size: 13px !important;
+        }
+
+        /* Table containers */
+        .table-container { padding: 1em !important; margin: 0.5em 0 !important; }
+        .table-container h2 { font-size: 20px !important; margin-bottom: 0.75em !important; }
+        .table-container h3 { font-size: 16px !important; }
+
+        /* Policy details cards */
+        .details-grid { grid-template-columns: 1fr !important; }
+
+        /* Form grids — override inline styles with !important */
+        .form-grid-2 { grid-template-columns: 1fr !important; }
+        .form-grid-span-2 { grid-column: span 1 !important; }
+
+        /* Search form row */
+        .search-row { flex-direction: column !important; }
+        .search-row .btn-primary { width: 100%; justify-content: center; }
+
+        /* Insurer add form */
+        .insurer-form-row { flex-direction: column !important; align-items: stretch !important; }
+        .insurer-form-row .btn-primary { width: 100%; justify-content: center; height: auto !important; padding: 12px !important; }
+
+        /* Action button groups in details */
+        .action-group { flex-direction: column !important; align-items: stretch !important; }
+        .action-group a, .action-group button { width: 100%; justify-content: center; }
+
+        /* Policy details header */
+        .details-header { flex-direction: column !important; align-items: stretch !important; }
+        .details-header button { width: 100%; justify-content: center; }
+      }
+
+      /* Responsive tables → card layout on small screens */
+      @media (max-width: 640px) {
+        .responsive-table,
+        .responsive-table tbody,
+        .responsive-table tr,
+        .responsive-table td { display: block !important; }
+
+        .responsive-table thead { display: none !important; }
+
+        .responsive-table tr {
+          border: 1px solid #e2e8f0 !important;
+          border-radius: 10px !important;
+          margin-bottom: 0.75em !important;
+          padding: 0.5em 0.75em !important;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.07) !important;
+          background: white !important;
+        }
+        .responsive-table tr:hover { background-color: #f0f9ff !important; }
+        .responsive-table tr.hover-row:hover td:first-child { border-left: none !important; }
+
+        .responsive-table td {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          border: none !important;
+          border-bottom: 1px solid #f1f5f9 !important;
+          padding: 0.45em 0.25em !important;
+          font-size: 14px !important;
+          gap: 0.5em;
+          min-height: 36px;
+        }
+        .responsive-table td:last-child { border-bottom: none !important; }
+
+        .responsive-table td[data-label]::before {
+          content: attr(data-label);
+          font-size: 11px !important;
+          font-weight: 700 !important;
+          color: #94a3b8 !important;
+          text-transform: uppercase !important;
+          letter-spacing: 0.06em !important;
+          white-space: nowrap;
+          flex-shrink: 0;
+          min-width: 75px;
+        }
+
+        .responsive-table td.td-action {
+          justify-content: flex-end !important;
+          padding-top: 0.6em !important;
+          gap: 0.5em;
+          flex-wrap: wrap;
+          border-bottom: none !important;
+        }
+        .responsive-table td.td-action::before { display: none !important; }
+      }
     </style>
 
     <div class="control-panel-body min-h-screen bg-gray-50">
@@ -1002,10 +1106,10 @@ defmodule ErsventajaWeb.ControlPanelLive do
       <.hero title="Painel de Controle" subtitle="Gerenciamento de Apólices" />
 
       <!-- Main Content -->
-      <div class="main-content" style="max-width: 1400px; margin: 0 auto; padding: 3em 2em;">
+      <div class="main-content main-content-pad" style="max-width: 1400px; margin: 0 auto; padding: 3em 2em;">
         <!-- Tabs -->
-        <div class="bg-white rounded-lg shadow-md mb-6 p-4">
-          <nav class="flex flex-wrap gap-2">
+        <div class="bg-white rounded-lg shadow-md mb-6 p-4" style="overflow: hidden;">
+          <nav class="tab-nav-scroll flex gap-2">
             <button
               phx-click="switch_tab"
               phx-value-tab="due"
@@ -1052,7 +1156,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
         <%= if @selected_policy do %>
           <!-- Policy Details View -->
           <div class="table-container">
-            <div style="margin-bottom: 1.5em; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1em;">
+            <div class="details-header" style="margin-bottom: 1.5em; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1em;">
               <button
                 phx-click="close_policy_details"
                 class="btn-secondary"
@@ -1081,7 +1185,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
             <%= if @editing_policy do %>
               <!-- Edit Form -->
               <form phx-submit="save_policy" phx-change="update_edit_form">
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5em; margin-bottom: 2em;">
+                <div class="form-grid-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5em; margin-bottom: 2em;">
                   <!-- Customer Info Card -->
                   <div style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; padding: 1.5em; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                     <h3 style="color: #4A7AC2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
@@ -1210,7 +1314,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
                 </div>
 
                 <!-- Form Actions -->
-                <div style="display: flex; gap: 1em; flex-wrap: wrap; justify-content: flex-end;">
+                <div class="action-group" style="display: flex; gap: 1em; flex-wrap: wrap; justify-content: flex-end;">
                   <button
                     type="button"
                     phx-click="cancel_edit_policy"
@@ -1230,7 +1334,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
               </form>
             <% else %>
               <!-- View Mode -->
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5em;">
+              <div class="details-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5em;">
                 <!-- Customer Info Card -->
                 <div style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); border-radius: 12px; padding: 1.5em; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
                   <h3 style="color: #4A7AC2; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 18px; margin-bottom: 1em; display: flex; align-items: center; gap: 0.5em;">
@@ -1324,8 +1428,8 @@ defmodule ErsventajaWeb.ControlPanelLive do
               </div>
 
               <!-- Actions -->
-              <div style="margin-top: 2em; display: flex; gap: 1em; flex-wrap: wrap; justify-content: space-between; align-items: center;">
-                <div style="display: flex; gap: 1em; flex-wrap: wrap;">
+              <div class="action-group" style="margin-top: 2em; display: flex; gap: 1em; flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                <div class="action-group" style="display: flex; gap: 1em; flex-wrap: wrap;">
                   <a
                     href={file_url(@selected_policy.file_name)}
                     target="_blank"
@@ -1365,7 +1469,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
           <div class="table-container">
             <h2 style="font-size: 28px; font-weight: 500; margin-bottom: 1.5em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Apólices com vencimento nos próximos 30 dias</h2>
             <div class="overflow-x-auto">
-              <table>
+              <table class="responsive-table">
                 <thead>
                   <tr>
                     <th>Calculado?</th>
@@ -1381,24 +1485,24 @@ defmodule ErsventajaWeb.ControlPanelLive do
                 <tbody>
                   <%= for policy <- @policies do %>
                     <tr id={"policy-due-#{policy.id}"} phx-click="view_policy" phx-value-id={policy.id} style="cursor: pointer;" class="hover-row">
-                      <td phx-click="update_renewal" phx-value-id={policy.id} style="cursor: pointer;">
+                      <td data-label="Calculado?" phx-click="update_renewal" phx-value-id={policy.id} style="cursor: pointer;">
                         <input
                           type="checkbox"
                           checked={policy.calculated}
                           style="width: 20px; height: 20px; cursor: pointer; pointer-events: none;"
                         />
                       </td>
-                      <td>
+                      <td data-label="Dias">
                         <span style={"padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; #{if calculate_days(policy.end_date) <= 7, do: "background-color: #fee2e2; color: #991b1b;", else: "background-color: #fef3c7; color: #92400e;"}"}>
                           <%= calculate_days(policy.end_date) %> dias
                         </span>
                       </td>
-                      <td style="font-weight: 500;"><%= policy.customer_name %></td>
-                      <td><%= policy.insurer %></td>
-                      <td><%= policy.detail %></td>
-                      <td><%= format_date(policy.start_date) %></td>
-                      <td><%= format_date(policy.end_date) %></td>
-                      <td phx-click="noop">
+                      <td data-label="Nome" style="font-weight: 500;"><%= policy.customer_name %></td>
+                      <td data-label="Seguradora"><%= policy.insurer %></td>
+                      <td data-label="Detalhe"><%= policy.detail %></td>
+                      <td data-label="Início"><%= format_date(policy.start_date) %></td>
+                      <td data-label="Vencimento"><%= format_date(policy.end_date) %></td>
+                      <td class="td-action" phx-click="noop">
                         <a
                           href={file_url(policy.file_name)}
                           target="_blank"
@@ -1427,7 +1531,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
                 <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f;">
                   Digite parte ou o nome do cliente
                 </label>
-                <div style="display: flex; gap: 0.75em;">
+                <div class="search-row" style="display: flex; gap: 0.75em;">
                   <input
                     type="text"
                     name="query"
@@ -1448,7 +1552,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
             <%= if length(@query_current_result) > 0 do %>
               <div class="overflow-x-auto">
-                <table>
+                <table class="responsive-table">
                   <thead>
                     <tr>
                       <th>Dias Restantes</th>
@@ -1463,17 +1567,17 @@ defmodule ErsventajaWeb.ControlPanelLive do
                   <tbody>
                     <%= for policy <- @query_current_result do %>
                       <tr id={"policy-current-#{policy.id}"} phx-click="view_policy" phx-value-id={policy.id} style="cursor: pointer;" class="hover-row">
-                        <td>
+                        <td data-label="Dias">
                           <span style="padding: 6px 12px; border-radius: 20px; font-size: 13px; font-weight: 600; background-color: #d1fae5; color: #065f46;">
                             <%= calculate_days(policy.end_date) %> dias
                           </span>
                         </td>
-                        <td style="font-weight: 500;"><%= policy.customer_name %></td>
-                        <td><%= policy.insurer %></td>
-                        <td><%= policy.detail %></td>
-                        <td><%= format_date(policy.start_date) %></td>
-                        <td><%= format_date(policy.end_date) %></td>
-                        <td phx-click="noop">
+                        <td data-label="Nome" style="font-weight: 500;"><%= policy.customer_name %></td>
+                        <td data-label="Seguradora"><%= policy.insurer %></td>
+                        <td data-label="Detalhe"><%= policy.detail %></td>
+                        <td data-label="Início"><%= format_date(policy.start_date) %></td>
+                        <td data-label="Vencimento"><%= format_date(policy.end_date) %></td>
+                        <td class="td-action" phx-click="noop">
                           <a href={file_url(policy.file_name)} target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 8px 16px; font-size: 14px;">
                             <i class="fas fa-file-pdf"></i> Abrir
                           </a>
@@ -1497,7 +1601,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
                 <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f;">
                   Digite parte ou o nome do cliente
                 </label>
-                <div style="display: flex; gap: 0.75em;">
+                <div class="search-row" style="display: flex; gap: 0.75em;">
                   <input
                     type="text"
                     name="query"
@@ -1518,7 +1622,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
             <%= if length(@query_result) > 0 do %>
               <div class="overflow-x-auto">
-                <table>
+                <table class="responsive-table">
                   <thead>
                     <tr>
                       <th>Nome</th>
@@ -1532,25 +1636,23 @@ defmodule ErsventajaWeb.ControlPanelLive do
                   <tbody>
                     <%= for policy <- @query_result do %>
                       <tr id={"policy-all-#{policy.id}"} phx-click="view_policy" phx-value-id={policy.id} style="cursor: pointer;" class="hover-row">
-                        <td style="font-weight: 500;"><%= policy.customer_name %></td>
-                        <td><%= policy.insurer %></td>
-                        <td><%= policy.detail %></td>
-                        <td><%= format_date(policy.start_date) %></td>
-                        <td><%= format_date(policy.end_date) %></td>
-                        <td phx-click="noop" phx-value-stop="true">
-                          <div style="display: flex; align-items: center; gap: 0.75em;">
-                            <a href={file_url(policy.file_name)} target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 8px 16px; font-size: 14px;">
-                              <i class="fas fa-file-pdf"></i> Abrir
-                            </a>
-                            <button
-                              phx-click="delete_policy"
-                              phx-value-id={policy.id}
-                              class="btn-danger"
-                              data-confirm="Tem certeza que deseja excluir esta apólice? Esta ação não pode ser desfeita."
-                            >
-                              <i class="fas fa-trash-alt"></i> Excluir
-                            </button>
-                          </div>
+                        <td data-label="Nome" style="font-weight: 500;"><%= policy.customer_name %></td>
+                        <td data-label="Seguradora"><%= policy.insurer %></td>
+                        <td data-label="Detalhe"><%= policy.detail %></td>
+                        <td data-label="Início"><%= format_date(policy.start_date) %></td>
+                        <td data-label="Vencimento"><%= format_date(policy.end_date) %></td>
+                        <td class="td-action" phx-click="noop" phx-value-stop="true">
+                          <a href={file_url(policy.file_name)} target="_blank" rel="noopener noreferrer" class="btn-primary" style="padding: 8px 16px; font-size: 14px;">
+                            <i class="fas fa-file-pdf"></i> Abrir
+                          </a>
+                          <button
+                            phx-click="delete_policy"
+                            phx-value-id={policy.id}
+                            class="btn-danger"
+                            data-confirm="Tem certeza que deseja excluir esta apólice? Esta ação não pode ser desfeita."
+                          >
+                            <i class="fas fa-trash-alt"></i> Excluir
+                          </button>
                         </td>
                       </tr>
                     <% end %>
@@ -1620,7 +1722,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
               <!-- Campos do formulário - só aparecem após PDF ser carregado -->
               <%= if Map.get(assigns, :ocr_file_name) && !@processing_ocr do %>
-              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5em; margin-bottom: 1.5em;">
+              <div class="form-grid-2" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5em; margin-bottom: 1.5em;">
                 <div style="min-width: 0;">
                   <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f;">Nome do proponente</label>
                   <input
@@ -1647,7 +1749,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
                   </select>
                 </div>
 
-                <div style="grid-column: span 2;">
+                <div class="form-grid-span-2" style="grid-column: span 2;">
                   <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f;">Informações adicionais</label>
                   <input
                     type="text"
@@ -1707,7 +1809,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
                   />
                 </div>
 
-                <div style="grid-column: span 2;">
+                <div class="form-grid-span-2" style="grid-column: span 2;">
                   <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f;">E-mail</label>
                   <input
                     type="email"
@@ -1876,7 +1978,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
             <!-- Create New Insurer -->
             <div style="margin-bottom: 3em; padding: 2em; background-color: #f9fafb; border-radius: 8px;">
               <h3 style="font-size: 20px; font-weight: 500; margin-bottom: 1em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Adicionar Nova Seguradora</h3>
-              <form phx-submit="create_insurer" phx-change="update_insurer_name" style="display: flex; gap: 0.75em; align-items: flex-end;">
+              <form phx-submit="create_insurer" phx-change="update_insurer_name" class="insurer-form-row" style="display: flex; gap: 0.75em; align-items: flex-end;">
                 <div style="flex: 1;">
                   <label style="display: block; font-size: 15px; font-weight: 500; margin-bottom: 0.5em; color: #504f4f;">
                     Nome da Seguradora
@@ -1906,7 +2008,7 @@ defmodule ErsventajaWeb.ControlPanelLive do
               <h3 style="font-size: 20px; font-weight: 500; margin-bottom: 1em; color: #504f4f; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">Seguradoras Cadastradas</h3>
               <%= if length(@insurers) > 0 do %>
                 <div class="overflow-x-auto">
-                  <table>
+                  <table class="responsive-table">
                     <thead>
                       <tr>
                         <th>ID</th>
@@ -1917,9 +2019,9 @@ defmodule ErsventajaWeb.ControlPanelLive do
                     <tbody>
                       <%= for insurer <- @insurers do %>
                         <tr id={"insurer-row-#{insurer.id}"}>
-                          <td style="font-weight: 500;"><%= insurer.id %></td>
-                          <td style="font-weight: 500;"><%= insurer.name %></td>
-                          <td>
+                          <td data-label="ID" style="font-weight: 500;"><%= insurer.id %></td>
+                          <td data-label="Nome" style="font-weight: 500;"><%= insurer.name %></td>
+                          <td class="td-action">
                             <button
                               phx-click="delete_insurer"
                               phx-value-id={insurer.id}

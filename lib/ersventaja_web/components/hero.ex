@@ -7,15 +7,30 @@ defmodule ErsventajaWeb.Components.Hero do
   def hero(assigns) do
     ~H"""
     <style>
-      .hero-section { margin-top: 50px; height: 350px; width: 100% !important; max-width: 100% !important; background-color: rgb(39, 39, 39); display: flex; align-items: center; justify-content: center; position: relative; }
+      .hero-section {
+        margin-top: 50px; width: 100% !important; max-width: 100% !important;
+        background-color: rgb(39, 39, 39);
+        display: flex; align-items: center; justify-content: center;
+        position: relative; height: 350px;
+      }
+      .hero-logo { width: 140px; height: 140px; margin-bottom: 1.5em; }
+      .hero-title { font-size: 48px; margin: 0; font-weight: 400; color: white; letter-spacing: 2px; font-family: 'Playfair Display', Georgia, serif; }
+      .hero-subtitle { font-size: 20px; font-style: italic; margin: 0.5em 0 0 0; color: white; font-family: 'Playfair Display', Georgia, serif; }
+
+      @media (max-width: 768px) {
+        .hero-section { height: 220px; }
+        .hero-logo { width: 80px; height: 80px; margin-bottom: 0.75em; }
+        .hero-title { font-size: 28px; letter-spacing: 1px; }
+        .hero-subtitle { font-size: 15px; }
+      }
     </style>
 
     <div class="hero-section">
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-        <img alt="RS Ventaja" src="/images/rs_logo_transparent.png" width="140" height="140" style="margin-bottom: 1.5em;" />
-        <h1 style="font-size: 48px; margin: 0; font-weight: 400; color: white; letter-spacing: 2px; font-family: 'Playfair Display', Georgia, serif;"><%= @title %></h1>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 1em;">
+        <img alt="RS Ventaja" src="/images/rs_logo_transparent.png" class="hero-logo" />
+        <h1 class="hero-title"><%= @title %></h1>
         <%= if @subtitle do %>
-          <p style="font-size: 20px; font-style: italic; margin: 0.5em 0 0 0; color: white; font-family: 'Playfair Display', Georgia, serif;"><%= @subtitle %></p>
+          <p class="hero-subtitle"><%= @subtitle %></p>
         <% end %>
       </div>
     </div>

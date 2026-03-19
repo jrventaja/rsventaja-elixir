@@ -21,6 +21,12 @@ defmodule ErsventajaWeb.ContactLive do
       .contact-info { font-size: 18px; line-height: 2.5; max-width: 600px; margin: 0 auto; }
       .contact-info a { color: #666; text-decoration: none; }
       .contact-info a:hover { color: #2346ae; }
+
+      @media (max-width: 768px) {
+        .section { padding: 2em 1.25em; }
+        .section-title { font-size: 28px; letter-spacing: 1px; margin-bottom: 1em; }
+        .contact-info { font-size: 16px; line-height: 2.2; }
+      }
     </style>
 
     <.navbar />
