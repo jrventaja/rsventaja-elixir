@@ -228,7 +228,8 @@ defmodule Ersventaja.Segfy.Vehicle do
       "fipe_value",
       "fipe_code",
       "brand_id",
-      "vehicle_type"
+      "vehicle_type",
+      "fuel_type"
     ])
   end
 

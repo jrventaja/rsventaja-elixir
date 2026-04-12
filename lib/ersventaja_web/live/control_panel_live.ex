@@ -225,22 +225,29 @@ defmodule ErsventajaWeb.ControlPanelLive do
   def handle_event("segfy_calcular_renovacao", _params, socket) do
     policy = socket.assigns.selected_policy
 
-    if is_nil(policy) do
-      {:noreply, socket |> put_flash(:warning, "Nenhuma apólice selecionada.")}
-    else
-      parent = self()
+    cond do
+      is_nil(policy) ->
+        {:noreply, socket |> put_flash(:warning, "Nenhuma apólice selecionada.")}
 
-      Task.start(fn ->
-        result = SegfyQuotation.run(policy)
-        send(parent, {:segfy_renewal_done, result})
-      end)
+      String.upcase(to_string(policy[:insurance_type])) != "AUTOMÓVEL" ->
+        {:noreply,
+         socket
+         |> put_flash(:warning, "Cotação Segfy disponível apenas para apólices de AUTOMÓVEL.")}
 
-      {:noreply,
-       assign(socket,
-         segfy_renewal_loading: true,
-         segfy_premiums_preview: nil,
-         segfy_quotation_url: nil
-       )}
+      true ->
+        parent = self()
+
+        Task.start(fn ->
+          result = SegfyQuotation.run(policy)
+          send(parent, {:segfy_renewal_done, result})
+        end)
+
+        {:noreply,
+         assign(socket,
+           segfy_renewal_loading: true,
+           segfy_premiums_preview: nil,
+           segfy_quotation_url: nil
+         )}
     end
   end
 
@@ -2103,7 +2110,8 @@ defmodule ErsventajaWeb.ControlPanelLive do
                   >
                     <i class="fas fa-file-pdf"></i> Baixar PDF
                   </a>
-                  <%= if @segfy_enabled and !@segfy_quotation_url do %>
+                  <%= if @segfy_enabled and !@segfy_quotation_url and
+                           String.upcase(to_string(@selected_policy[:insurance_type])) == "AUTOMÓVEL" do %>
                     <button
                       type="button"
                       phx-click="segfy_calcular_renovacao"

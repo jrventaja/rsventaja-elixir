@@ -273,9 +273,15 @@ defmodule Ersventaja.Policies do
   end
 
   def download_policy_file(file_name) do
-    case ExAws.S3.get_object(@bucket, file_name) |> ExAws.request(region: @region) do
-      {:ok, %{body: body}} -> {:ok, body}
-      {:error, reason} -> {:error, reason}
+    case Process.get({:segfy_test_local_pdf, file_name}) do
+      nil ->
+        case ExAws.S3.get_object(@bucket, file_name) |> ExAws.request(region: @region) do
+          {:ok, %{body: body}} -> {:ok, body}
+          {:error, reason} -> {:error, reason}
+        end
+
+      local_path ->
+        File.read(local_path)
     end
   end
 

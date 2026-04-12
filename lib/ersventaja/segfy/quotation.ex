@@ -388,7 +388,9 @@ defmodule Ersventaja.Segfy.Quotation do
     |> ensure_validity_dates(payload)
     |> ensure_vehicle_defaults(payload)
     |> ensure_vehicle_plate_for_calculate(payload)
+    |> sanitize_customer_defaults()
     |> ensure_main_driver_defaults()
+    |> ensure_birth_date_fallback()
     |> ensure_questionnaire_defaults()
     |> ensure_coverage_defaults()
     |> ensure_renewal_defaults(payload)
@@ -430,15 +432,102 @@ defmodule Ersventaja.Segfy.Quotation do
     "fipe_percentage" => "100"
   }
 
+  @valid_relationships MapSet.new(~w(himself spouse parent child sibling other))
+
   defp sanitize_calculate_like_har(data) when is_map(data) do
     q = Map.get(data, "questionnaire") || %{}
     c = Map.get(data, "coverage") || %{}
     v = Map.get(data, "vehicle") || %{}
+    md = Map.get(data, "main_driver") || %{}
+
+    md = sanitize_main_driver_relationship(md)
 
     data
     |> Map.put("questionnaire", sanitize_questionnaire_har(q))
     |> Map.put("coverage", sanitize_coverage_enums_har(c))
-    |> Map.put("vehicle", sanitize_vehicle_booleans_har(v))
+    |> Map.put("vehicle", sanitize_vehicle_har(v))
+    |> Map.put("main_driver", md)
+  end
+
+  defp sanitize_main_driver_relationship(md) when is_map(md) do
+    rel = Map.get(md, "relationship")
+
+    if is_binary(rel) and MapSet.member?(@valid_relationships, String.downcase(String.trim(rel))) do
+      Map.put(md, "relationship", String.downcase(String.trim(rel)))
+    else
+      Map.put(md, "relationship", "himself")
+    end
+  end
+
+  # Segfy API aceita: "flex", "gasoline", "diesel", "hybrid", "electric"
+  # (valores retornados pelo model-list, que é autoritativo)
+  @segfy_fuel_types MapSet.new(~w(flex gasoline diesel hybrid electric))
+
+  # LLM / texto OCR → enum Segfy
+  @fuel_type_map %{
+    "gasolina" => "gasoline",
+    "gasoline" => "gasoline",
+    "diesel" => "diesel",
+    "flex" => "flex",
+    "flex fuel" => "flex",
+    "bicombustível" => "flex",
+    "bicombustivel" => "flex",
+    "gasoline_and_alcohol" => "flex",
+    "álcool" => "flex",
+    "alcool" => "flex",
+    "alcohol" => "flex",
+    "etanol" => "flex",
+    "gnv" => "gasoline",
+    "gasoline_and_gas" => "gasoline",
+    "alcohol_and_gas" => "flex",
+    "gasoline_alcohol_and_gas" => "flex",
+    "gás" => "gasoline",
+    "gas" => "gasoline",
+    "elétrico" => "electric",
+    "eletrico" => "electric",
+    "electric" => "electric",
+    "hybrid" => "hybrid",
+    "híbrido" => "hybrid",
+    "hibrido" => "hybrid"
+  }
+
+  defp sanitize_vehicle_har(v) when is_map(v) do
+    v = sanitize_vehicle_booleans_har(v)
+    ft = Map.get(v, "fuel_type")
+
+    # Se o fuel_type já é um valor válido do Segfy (vindo do model-list), manter
+    fuel =
+      cond do
+        is_binary(ft) and MapSet.member?(@segfy_fuel_types, ft) ->
+          ft
+
+        is_binary(ft) ->
+          Map.get(@fuel_type_map, String.downcase(String.trim(ft)), "flex")
+
+        true ->
+          "flex"
+      end
+
+    v = Map.put(v, "fuel_type", fuel)
+
+    # category_type: Segfy rejeita valores fora da lista
+    v = sanitize_category_type(v)
+
+    v
+  end
+
+  defp sanitize_vehicle_har(v), do: v
+
+  @valid_category_types MapSet.new(~w(particular taxi official app_driver))
+
+  defp sanitize_category_type(v) when is_map(v) do
+    ct = Map.get(v, "category_type")
+
+    if is_binary(ct) and MapSet.member?(@valid_category_types, String.downcase(String.trim(ct))) do
+      Map.put(v, "category_type", String.downcase(String.trim(ct)))
+    else
+      Map.put(v, "category_type", "particular")
+    end
   end
 
   defp sanitize_questionnaire_har(q) when is_map(q) do
@@ -446,9 +535,22 @@ defmodule Ersventaja.Segfy.Quotation do
     |> Map.put("residence_garage", coerce_residence_garage_har(Map.get(q, "residence_garage")))
     |> Map.put("job_garage", coerce_yes_no_garage_har(Map.get(q, "job_garage")))
     |> Map.put("study_garage", coerce_yes_no_garage_har(Map.get(q, "study_garage")))
+    |> coerce_utilization_type_har()
   end
 
   defp sanitize_questionnaire_har(_), do: %{}
+
+  @valid_utilization_types MapSet.new(~w(personal commercial_and_personal go_back_to_work))
+
+  defp coerce_utilization_type_har(q) when is_map(q) do
+    ut = Map.get(q, "utilization_type")
+
+    if is_binary(ut) and MapSet.member?(@valid_utilization_types, String.trim(ut)) do
+      q
+    else
+      Map.put(q, "utilization_type", "personal")
+    end
+  end
 
   defp coerce_residence_garage_har(v) do
     v = if is_binary(v), do: String.trim(v), else: v
@@ -462,14 +564,12 @@ defmodule Ersventaja.Segfy.Quotation do
   end
 
   defp coerce_yes_no_garage_har(v) do
-    v = if is_binary(v), do: String.trim(v), else: v
+    v = if is_binary(v), do: String.downcase(String.trim(v)), else: v
 
-    cond do
-      v in [nil, ""] -> "yes"
-      v == "yes" -> "yes"
-      v == "no" -> "no"
-      is_binary(v) and segfy_slug_like?(v) and String.length(v) <= 24 -> v
-      true -> "yes"
+    case v do
+      "yes" -> "yes"
+      "no" -> "no"
+      _ -> "yes"
     end
   end
 
@@ -508,15 +608,34 @@ defmodule Ersventaja.Segfy.Quotation do
           Map.put(acc, key, :erlang.float_to_binary(v / 1, decimals: 2))
 
         v when is_binary(v) ->
-          case Float.parse(String.trim(v)) do
+          cleaned = sanitize_br_monetary(v)
+
+          case Float.parse(cleaned) do
             {n, _} -> Map.put(acc, key, :erlang.float_to_binary(n, decimals: 2))
-            :error -> acc
+            :error -> Map.put(acc, key, nil)
           end
 
         _ ->
           acc
       end
     end)
+  end
+
+  # "R$ 500.000,00" → "500000.00", "10.000" → "10000", "10000.00" → "10000.00"
+  defp sanitize_br_monetary(v) when is_binary(v) do
+    v = String.trim(v) |> String.replace(~r/^R\$\s*/, "")
+
+    if String.contains?(v, ",") do
+      # Formato BR: pontos são milhar, vírgula é decimal
+      v |> String.replace(".", "") |> String.replace(",", ".")
+    else
+      # Formato US ou sem decimal — remover pontos de milhar se o padrão for X.XXX.XXX
+      if Regex.match?(~r/^\d{1,3}(\.\d{3})+$/, v) do
+        String.replace(v, ".", "")
+      else
+        v
+      end
+    end
   end
 
   defp normalize_fipe_percentage(c) when is_map(c) do
@@ -539,12 +658,18 @@ defmodule Ersventaja.Segfy.Quotation do
 
   # Show/Porto pode trazer franchise/glass/rental_car como valores monetários ("3400.00") —
   # a API multicálculo espera **slugs** (HAR). Só `fipe_percentage` aceita número como string.
+  @valid_coverage_types MapSet.new(~w(comprehensive fire_theft))
+
+  defp coverage_field_valid_for_calculate?("coverage_type", v) when is_binary(v) do
+    MapSet.member?(@valid_coverage_types, String.trim(v))
+  end
+
   defp coverage_field_valid_for_calculate?("fipe_percentage", v),
     do: coverage_fipe_percentage_valid?(v)
 
   defp coverage_field_valid_for_calculate?(_key, v) when is_number(v), do: false
 
-  # O show/Porto às vezes manda slugs “genéricos” (`unlimited`) que passam em `segfy_slug_like?/1`
+  # O show/Porto às vezes manda slugs "genéricos" (`unlimited`) que passam em `segfy_slug_like?/1`
   # mas **não** estão na lista da api.automation → VALIDACAO "não está incluído na lista".
   defp coverage_field_valid_for_calculate?("assistance", v) when is_binary(v) do
     s = String.trim(v)
@@ -808,12 +933,180 @@ defmodule Ersventaja.Segfy.Quotation do
     Map.put(data, "vehicle", veh)
   end
 
+  defp sanitize_customer_defaults(data) do
+    cust = data["customer"] || %{}
+
+    # Limpar birth_date com string "null"
+    cust = sanitize_null_string(cust, "birth_date")
+    # Limpar sex com string "null"
+    cust = sanitize_null_string(cust, "sex")
+    # Inferir sex a partir do nome se ausente
+    cust = ensure_sex_from_name(cust)
+
+    # Copiar birth_date de main_driver se ausente no customer (e vice-versa)
+    md = data["main_driver"] || %{}
+    cust_bd = Map.get(cust, "birth_date")
+    md_bd = Map.get(md, "birth_date")
+
+    cust =
+      if is_nil(cust_bd) or cust_bd == "" do
+        if is_binary(md_bd) and md_bd != "" and md_bd != "null",
+          do: Map.put(cust, "birth_date", md_bd),
+          else: cust
+      else
+        cust
+      end
+
+    Map.put(data, "customer", cust)
+  end
+
+  # LLM às vezes retorna a string literal "null" ao invés de JSON null
+  defp sanitize_null_string(map, key) do
+    case Map.get(map, key) do
+      "null" -> Map.put(map, key, nil)
+      _ -> map
+    end
+  end
+
+  @female_name_endings ~w(a ia na da sa la ra za ea ma ta)
+  @male_names MapSet.new(~w(
+    JOSE CARLOS ANTONIO FRANCISCO JOAO PEDRO PAULO MARCOS LUIS LUIZ JORGE
+    EDUARDO ROBERTO RICARDO FERNANDO MARCELO RAFAEL LUCAS ANDRE HIDEO MOISES
+    NILTON ARMANDO RONY AVELINO SEVERINO CLAUDIO RUI
+  ))
+  @female_names MapSet.new(~w(
+    MARIA ANA PAULA ELIANE ELAINE DEBORA PAOLA LEILA SELMA SANDRA ROSANE
+    TATIANE VIVIANE ELIZABETH MARCIA SIMONE CLEUSA THAIS MONALISA MARIANA
+    CAROLINE DANIELA
+  ))
+
+  defp ensure_sex_from_name(section) when is_map(section) do
+    case Map.get(section, "sex") do
+      s when is_binary(s) and s != "" and s != "null" ->
+        section
+
+      _ ->
+        name = Map.get(section, "name") || ""
+        first = name |> String.split() |> List.first() |> to_string() |> String.upcase()
+
+        sex =
+          cond do
+            MapSet.member?(@male_names, first) ->
+              "male"
+
+            MapSet.member?(@female_names, first) ->
+              "female"
+
+            Enum.any?(@female_name_endings, &String.ends_with?(String.downcase(first), &1)) ->
+              "female"
+
+            first != "" ->
+              "male"
+
+            true ->
+              "male"
+          end
+
+        Map.put(section, "sex", sex)
+    end
+  end
+
   defp ensure_main_driver_defaults(data) do
     md = data["main_driver"] || %{}
     md = put_default(md, "marital_status", "married")
     md = put_default(md, "profession", "Medico")
     md = put_default(md, "relationship", "himself")
+    md = sanitize_null_string(md, "birth_date")
+    md = sanitize_null_string(md, "sex")
+
+    # Segfy exige CPF (11 dígitos) no main_driver; CNPJ (14 dígitos) é inválido
+    md =
+      case Map.get(md, "document") do
+        d when is_binary(d) ->
+          digits_only = String.replace(d, ~r/[^0-9]/, "")
+
+          if byte_size(digits_only) > 11 do
+            Logger.warning(
+              "[Segfy Quotation] main_driver.document parece CNPJ (#{byte_size(digits_only)} dígitos), " <>
+                "removendo — Segfy exige CPF"
+            )
+
+            Map.delete(md, "document")
+          else
+            md
+          end
+
+        _ ->
+          md
+      end
+
+    # Inferir sex a partir do nome se ausente
+    md = ensure_sex_from_name(md)
+
+    # Copiar birth_date do customer se ausente no main_driver
+    cust = data["customer"] || %{}
+    md_bd = Map.get(md, "birth_date")
+    cust_bd = Map.get(cust, "birth_date")
+
+    md =
+      if is_nil(md_bd) or md_bd == "" or md_bd == "null" do
+        if is_binary(cust_bd) and cust_bd != "" and cust_bd != "null",
+          do: Map.put(md, "birth_date", cust_bd),
+          else: md
+      else
+        md
+      end
+
     Map.put(data, "main_driver", md)
+  end
+
+  # Último recurso: se após todas as tentativas de copiar entre customer/main_driver
+  # ambos ainda não têm birth_date, usar data estimada para não bloquear a cotação.
+  # Segfy rejeita cotação sem birth_date.
+  defp ensure_birth_date_fallback(data) do
+    cust = data["customer"] || %{}
+    md = data["main_driver"] || %{}
+    cust_bd = Map.get(cust, "birth_date")
+    md_bd = Map.get(md, "birth_date")
+
+    missing_cust? = is_nil(cust_bd) or cust_bd == "" or cust_bd == "null"
+    missing_md? = is_nil(md_bd) or md_bd == "" or md_bd == "null"
+
+    if missing_cust? or missing_md? do
+      # Tentar usar a data que existir em um dos dois
+      fallback =
+        cond do
+          not missing_cust? ->
+            cust_bd
+
+          not missing_md? ->
+            md_bd
+
+          true ->
+            Logger.warning(
+              "[Segfy Quotation] birth_date ausente tanto em customer quanto em main_driver — " <>
+                "usando data estimada 1980-01-01 para não bloquear cotação"
+            )
+
+            "1980-01-01"
+        end
+
+      data =
+        if missing_cust?,
+          do: Map.put(data, "customer", Map.put(cust, "birth_date", fallback)),
+          else: data
+
+      if missing_md?,
+        do:
+          Map.put(
+            data,
+            "main_driver",
+            Map.put(data["main_driver"] || %{}, "birth_date", fallback)
+          ),
+        else: data
+    else
+      data
+    end
   end
 
   defp ensure_questionnaire_defaults(data) do
@@ -940,15 +1233,17 @@ defmodule Ersventaja.Segfy.Quotation do
 
     r =
       if Map.get(r, "quotation_type") == "RENOVATION" and
-           (blankish?(Map.get(r, "prior_policy")) or blankish?(Map.get(r, "prior_policy_end"))) do
+           blankish?(Map.get(r, "prior_policy")) do
         Logger.warning(
-          "[Segfy Quotation] RENOVATION sem prior_policy/prior_policy_end completos " <>
+          "[Segfy Quotation] RENOVATION sem prior_policy — rebaixando para NEW_QUOTATION " <>
             "prior_policy=#{inspect(Map.get(r, "prior_policy"))} " <>
             "prior_policy_end=#{inspect(Map.get(r, "prior_policy_end"))} " <>
             "policy_keys=#{inspect(Map.keys(pol))}"
         )
 
         r
+        |> Map.put("quotation_type", "NEW_QUOTATION")
+        |> Map.put("insurer", "new")
       else
         r
       end

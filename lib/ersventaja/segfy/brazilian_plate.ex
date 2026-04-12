@@ -11,8 +11,14 @@ defmodule Ersventaja.Segfy.BrazilianPlate do
   @old ~r/\A[A-Z]{3}[0-9]{4}\z/u
   @mercosul ~r/\A[A-Z]{3}[0-9][A-Z][0-9]{2}\z/u
 
+  # Mapa de substituições OCR: caracteres ambíguos que são frequentemente confundidos
+  @ocr_swaps %{?O => [?0], ?0 => [?O], ?I => [?1], ?1 => [?I]}
+
   @doc """
   Remove separadores, caixa alta, valida padrão BR. Retorna placa **sem hífen** (ex.: `DAP0J59`).
+
+  Quando a placa não corresponde a nenhum formato válido, tenta corrigir
+  automaticamente confusões comuns de OCR (O↔0, I↔1).
   """
   @spec normalize(term()) :: {:ok, String.t()} | :error
   def normalize(s) when is_binary(s) do
@@ -33,11 +39,44 @@ defmodule Ersventaja.Segfy.BrazilianPlate do
         {:ok, raw}
 
       true ->
-        :error
+        try_ocr_corrections(raw)
     end
   end
 
   def normalize(_), do: :error
+
+  # Tenta substituições OCR (O↔0, I↔1) nas posições ambíguas e retorna a
+  # primeira combinação que resulta em placa válida.
+  @spec try_ocr_corrections(String.t()) :: {:ok, String.t()} | :error
+  defp try_ocr_corrections(raw) do
+    raw
+    |> String.to_charlist()
+    |> ocr_variants()
+    |> Enum.find_value(:error, fn variant ->
+      candidate = List.to_string(variant)
+
+      cond do
+        Regex.match?(@old, candidate) -> {:ok, candidate}
+        Regex.match?(@mercosul, candidate) -> {:ok, candidate}
+        true -> nil
+      end
+    end)
+  end
+
+  # Gera todas as combinações de substituições OCR para os caracteres ambíguos.
+  # Ex.: 'EDBOI52' → [~c"EDB0I52", ~c"EDBO152", ~c"EDB0152", ...]
+  defp ocr_variants(chars) do
+    chars
+    |> Enum.reduce([[]], fn char, acc ->
+      alternatives = Map.get(@ocr_swaps, char, [])
+
+      Enum.flat_map(acc, fn prefix ->
+        for c <- [char | alternatives], do: prefix ++ [c]
+      end)
+    end)
+    # Remove a versão original (já foi testada)
+    |> Enum.drop(1)
+  end
 
   @doc false
   def valid?(s), do: match?({:ok, _}, normalize(s))

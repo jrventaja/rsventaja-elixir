@@ -673,12 +673,19 @@ defmodule Ersventaja.Segfy.Renewal do
       if label != "", do: Map.put(v, "model", label), else: v
     end
 
+    # model-list retorna fuel_type autoritativo (ex.: "flex", "diesel", "gasoline", "hybrid")
+    apply_fuel_type = fn v ->
+      ft = Map.get(m, "fuel_type")
+      if is_binary(ft) and ft != "", do: Map.put(v, "fuel_type", ft), else: v
+    end
+
     case fipe_value_from_model(m) do
       {:ok, fv} when is_integer(fv) and fv > 0 ->
         veh
         |> Map.put("fipe_value", fv)
         |> apply_label.()
         |> apply_fipe_code.()
+        |> apply_fuel_type.()
 
       {:error, :bad_fipe_value_string, v} ->
         Logger.warning(
@@ -686,10 +693,10 @@ defmodule Ersventaja.Segfy.Renewal do
             "model_label=#{inspect(truncate_model_name(label))}"
         )
 
-        veh |> apply_label.() |> apply_fipe_code.()
+        veh |> apply_label.() |> apply_fipe_code.() |> apply_fuel_type.()
 
       _ ->
-        veh |> apply_label.() |> apply_fipe_code.()
+        veh |> apply_label.() |> apply_fipe_code.() |> apply_fuel_type.()
     end
   end
 
@@ -960,6 +967,8 @@ defmodule Ersventaja.Segfy.Renewal do
     case digits(policy[:customer_cpf_or_cnpj] || policy["customer_cpf_or_cnpj"]) do
       nil -> m
       "" -> m
+      # CNPJ (14 dígitos) não é CPF válido para main_driver — Segfy rejeita
+      d when byte_size(d) > 11 -> m
       d -> Map.put(m, "document", d)
     end
   end

@@ -260,7 +260,12 @@ defmodule Ersventaja.Segfy.AutoPolicyExtractor do
         "allianz" (Allianz), "sulamerica" (SulAmérica), "zurich" (Zurich), "sompo" (Sompo),
         "alfa" (Alfa Seguros), "suhai" (Suhai).
         Use "new" APENAS se não houver seguradora anterior (cotação nova, sem apólice vigente)
-      - prior_policy: número da apólice anterior (string)
+      - prior_policy: número da apólice anterior (string, SOMENTE DÍGITOS). CAMPO CRÍTICO para renovação —
+        procure ativamente por "Nº APÓLICE", "APÓLICE Nº", "NÚMERO DA APÓLICE", "APOLICE", "Nº DO CONTRATO",
+        "CONTRATO", "Proposta" no documento. Geralmente é uma sequência de 7 a 15 dígitos.
+        Remova pontuação (pontos, hífens, barras) e devolva só os dígitos. Exemplos:
+        "05.31.595.032.037" → "0531595032037", "4551146" → "4551146".
+        É MUITO RARO que uma apólice de renovação não tenha número — retorne null só se realmente não encontrar.
       - claim_amount: string com valor ou quantidade de sinistros (ex.: "0")
       - prior_policy_end: data fim da apólice anterior (YYYY-MM-DD)
       - bonus_current, bonus_last: classe de bônus (string, ex.: "10")
@@ -276,12 +281,23 @@ defmodule Ersventaja.Segfy.AutoPolicyExtractor do
       - residence_type (ex.: "house", "apartment")
       - tax_exemption (ex.: "not_isent")
     - coverage: apenas se o documento deixar claro limites ou tipos; use chaves alinhadas ao Segfy:
-      - coverage_type, franchise, fipe_percentage, assistance, glass, rental_car, material_damage, body_injuries, moral_damage (números ou strings conforme o texto)
-    - customer: name, document (CPF só dígitos), birth_date (YYYY-MM-DD), sex ("male"|"female"), email, cellphone, social_name
-    - main_driver: mesmos conceitos + profession, marital_status, relationship (ex.: "himself")
+      - coverage_type, franchise, fipe_percentage, assistance, glass, rental_car,
+        material_damage, body_injuries, moral_damage: valores monetários devem ser SOMENTE NÚMEROS
+        (sem "R$", sem pontos de milhar, usar ponto como separador decimal).
+        Ex.: "R$ 500.000,00" → 500000.00, "R$ 10.000,00" → 10000.00
+    - customer: name, document (CPF só dígitos, 11 chars; se for CNPJ use 14 dígitos), birth_date (YYYY-MM-DD),
+      sex ("male"|"female" — OBRIGATÓRIO: infira pelo nome se não estiver explícito), email, cellphone, social_name
+    - main_driver: mesmos conceitos + profession, marital_status, relationship (ex.: "himself").
+      IMPORTANTE: se o segurado for pessoa jurídica (CNPJ), o main_driver.document deve ser o CPF do
+      responsável/representante legal (11 dígitos), NÃO o CNPJ da empresa.
     - vehicle: brand, model, plate (OBRIGATÓRIO se preencher: exatamente 7 caracteres após remover hífen — antiga AAA9999 ou Mercosul AAA9A99; NUNCA fragmentos tipo "DAP-9"),
       chassis, manufacture_year, model_year, circulation_zip_code (CEP com hífen se possível),
-      fuel_type (ex.: "gasoline"), vehicle_type ("car"), category_type (ex.: "particular"), fipe_code, fipe_value (número),
+      fuel_type: OBRIGATÓRIO usar enum Segfy em inglês:
+        "gasoline" (gasolina), "alcohol" (álcool/etanol), "diesel",
+        "gasoline_and_alcohol" (flex/bicombustível), "gasoline_and_gas" (gasolina+GNV),
+        "alcohol_and_gas" (álcool+GNV), "gasoline_alcohol_and_gas" (flex+GNV), "electric" (elétrico).
+        Se "flex" ou "bicombustível" → use "gasoline_and_alcohol". Default (maioria dos carros BR): "gasoline_and_alcohol".
+      vehicle_type ("car"), category_type (ex.: "particular"), fipe_code, fipe_value (número),
       zero_km, alienated, gas_kit, armored, chassis_relabeled, anti_theft (boolean)
 
     ERROS COMUNS DE OCR — corrija antes de preencher JSON (customer.email, main_driver sem email duplicado se não houver):
