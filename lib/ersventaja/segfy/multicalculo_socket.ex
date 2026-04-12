@@ -162,9 +162,28 @@ defmodule Ersventaja.Segfy.MulticalculoSocket do
           _ -> []
         end
 
+      first_raw =
+        case List.first(results) do
+          %{"raw" => m} when is_map(m) -> m
+          _ -> %{}
+        end
+
+      premium_fields = %{
+        premium: Map.get(first_raw, "premium"),
+        best_installment: Map.get(first_raw, "best_installment"),
+        installments: Map.get(first_raw, "installments") |> inspect() |> String.slice(0, 200),
+        installments_budget:
+          Map.get(first_raw, "installments_budget") |> inspect() |> String.slice(0, 200),
+        company_prices: Map.get(first_raw, "company_prices") |> inspect() |> String.slice(0, 200),
+        status: Map.get(first_raw, "status"),
+        exception: Map.get(first_raw, "exception") |> inspect() |> String.slice(0, 200),
+        messages: Map.get(first_raw, "messages") |> inspect() |> String.slice(0, 200)
+      }
+
       Logger.info(
         "[Segfy MulticalculoSocket] Todos os RESULT vieram com prêmio 0/nil — " <>
           "chaves em `data` (1º evento)=#{inspect(keys)}. " <>
+          "Campos premium-related: #{inspect(premium_fields)}. " <>
           "O HFy no browser pode ainda mostrar valores (sessão diferente ou outro payload)."
       )
     end
@@ -284,18 +303,29 @@ defmodule Ersventaja.Segfy.MulticalculoSocket do
   end
 
   defp extract_result_detail(data) when is_map(data) do
+    # "messages" pode ser string ou lista de strings (Segfy inconsistente)
+    messages_raw = Map.get(data, "messages") || Map.get(data, "Messages")
+
+    messages_list =
+      case messages_raw do
+        s when is_binary(s) and s != "" -> [s]
+        l when is_list(l) -> Enum.filter(l, &is_binary/1)
+        _ -> []
+      end
+
     parts =
-      [
-        Map.get(data, "message"),
-        Map.get(data, "Message"),
-        Map.get(data, "error"),
-        Map.get(data, "Error"),
-        Map.get(data, "reason"),
-        Map.get(data, "Reason"),
-        Map.get(data, "failure_reason"),
-        Map.get(data, "description"),
-        Map.get(data, "Description")
-      ]
+      (messages_list ++
+         [
+           Map.get(data, "message"),
+           Map.get(data, "Message"),
+           Map.get(data, "error"),
+           Map.get(data, "Error"),
+           Map.get(data, "reason"),
+           Map.get(data, "Reason"),
+           Map.get(data, "failure_reason"),
+           Map.get(data, "description"),
+           Map.get(data, "Description")
+         ])
       |> Enum.filter(&is_binary/1)
       |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == ""))

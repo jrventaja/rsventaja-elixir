@@ -912,13 +912,43 @@ defmodule ErsventajaWeb.ControlPanelLive do
           persist_segfy_quotation(policy.id, info, premiums_preview)
         end
 
+        # Check if any insurer returned a value
+        ren_rows = Map.get(premiums_preview, :renovation, [])
+        has_value? = Enum.any?(ren_rows, fn r -> is_number(r["premium"]) and r["premium"] > 0 end)
+
+        flash_type = if has_value?, do: :success, else: :warning
+
+        flash_msg =
+          if has_value? do
+            "Segfy: renovação calculada com sucesso."
+          else
+            reasons =
+              ren_rows
+              |> Enum.filter(fn r ->
+                is_binary(r["result_detail"]) and r["result_detail"] != ""
+              end)
+              |> Enum.map(fn r ->
+                "#{r["company_name"] || "?"}: #{String.slice(r["result_detail"], 0, 100)}"
+              end)
+              |> Enum.uniq()
+              |> Enum.take(3)
+
+            base = "Segfy: cotação gerada, mas nenhuma seguradora retornou valor."
+
+            if reasons == [] do
+              base <> " Verifique os dados do veículo, vigência e cobertura."
+            else
+              base <> " " <> Enum.join(reasons, " | ")
+            end
+          end
+
         {:noreply,
          socket
          |> assign(
            segfy_premiums_preview: premiums_preview,
            segfy_quotation_url: quotation_url
          )
-         |> put_flash(:success, "Segfy: renovação calculada com sucesso.")}
+         |> put_flash(flash_type, flash_msg)}
 
       {:error, reason} ->
         {:noreply,
@@ -1129,17 +1159,10 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
   defp segfy_socket_result_rows(_), do: []
 
-  # Só mostra RESULT com status "ok" (cotação principal) ou "failure" sem premium
-  # Ignora STEP e additional_product
-  defp segfy_main_result_row?(%{"socket_action" => "RESULT"} = row) do
-    st = (row["status"] || "") |> to_string() |> String.downcase()
-    st in ["ok", "failure"]
-  end
+  # Mostra qualquer RESULT (ok, failure, restriction, etc.) — exclui STEP e additional_product
+  defp segfy_main_result_row?(%{"socket_action" => "RESULT"}), do: true
 
-  defp segfy_main_result_row?(%{"action" => "RESULT"} = row) do
-    st = (row["status"] || "") |> to_string() |> String.downcase()
-    st in ["ok", "failure"]
-  end
+  defp segfy_main_result_row?(%{"action" => "RESULT"}), do: true
 
   defp segfy_main_result_row?(_), do: false
 
@@ -1257,6 +1280,23 @@ defmodule ErsventajaWeb.ControlPanelLive do
 
   defp format_segfy_renewal_error({:calculate_failed, mode, reason}),
     do: "Cálculo Segfy (#{mode}): #{format_segfy_renewal_error(reason)}"
+
+  defp format_segfy_renewal_error({:calculate_validation, mode, validations})
+       when is_map(validations) do
+    fields =
+      validations
+      |> Enum.map(fn {field, msgs} ->
+        short = field |> String.replace("data.", "") |> String.replace("_", " ")
+        msg = List.first(List.wrap(msgs)) || "inválido"
+        "#{short}: #{msg}"
+      end)
+      |> Enum.join("; ")
+
+    "Segfy rejeitou os dados (#{mode}): #{fields}"
+  end
+
+  defp format_segfy_renewal_error({:calculate_validation, mode, reason}),
+    do: "Segfy rejeitou os dados (#{mode}): #{inspect(reason)}"
 
   defp format_segfy_renewal_error({:calculate_not_ok, mode, status, msg}),
     do: "Segfy calculate (#{mode}) status=#{inspect(status)} — #{inspect(msg)}"
